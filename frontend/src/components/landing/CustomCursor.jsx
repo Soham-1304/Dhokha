@@ -7,6 +7,8 @@ export default function CustomCursor() {
     const cursor = cursorRef.current;
     if (!cursor) return;
 
+    document.body.classList.add('has-custom-cursor');
+
     let mx = 0, my = 0, cx = 0, cy = 0;
     
     const handleMouseMove = (e) => {
@@ -47,6 +49,7 @@ export default function CustomCursor() {
     document.addEventListener('mouseout', handleMouseOut);
 
     return () => {
+      document.body.classList.remove('has-custom-cursor');
       window.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseover', handleMouseOver);
       document.removeEventListener('mouseout', handleMouseOut);
