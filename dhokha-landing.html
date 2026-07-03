@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dhokha — The Web They Can't See</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Special+Elite&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#121014;
+    --board:#17141a;
+    --cork-a:#2b2118;
+    --cork-b:#241b14;
+    --paper:#f4efe4;
+    --paper-shadow:#00000055;
+    --ink:#1c1812;
+    --ink-dim:#5c5748;
+    --text:#eeeae1;
+    --text-dim:#9b968c;
+    --string:#e5484d;
+    --brass:#c9a227;
+    --safe:#3fb67f;
+    --radius:10px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    overflow-x:hidden;
+    cursor:none;
+  }
+  ::selection{background:var(--string);color:#fff;}
+
+  /* custom cursor */
+  .cursor{
+    position:fixed; top:0; left:0; width:26px; height:26px;
+    border:1.5px solid var(--string); border-radius:50%;
+    pointer-events:none; z-index:9999; transform:translate(-50%,-50%);
+    transition:width .18s,height .18s,border-color .18s,background .18s;
+    mix-blend-mode:difference;
+  }
+  .cursor::before,.cursor::after{
+    content:''; position:absolute; background:var(--string);
+  }
+  .cursor::before{ top:50%; left:-6px; width:6px; height:1px; }
+  .cursor::after{ left:50%; top:-6px; height:6px; width:1px; }
+  .cursor.hover{ width:52px; height:52px; background:rgba(229,72,77,0.12); }
+  @media (pointer:coarse){ .cursor{display:none;} body{cursor:auto;} }
+
+  /* nav */
+  nav{
+    position:fixed; top:0; width:100%; z-index:100;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:22px 48px; backdrop-filter:blur(10px);
+    background:linear-gradient(to bottom, rgba(18,16,20,0.9), transparent);
+  }
+  .logo{
+    font-family:'Special Elite',monospace; font-size:20px; letter-spacing:2px;
+    color:var(--text);
+  }
+  .logo span{ color:var(--string); }
+  .nav-links{ display:flex; gap:32px; }
+  .nav-links a{
+    color:var(--text-dim); text-decoration:none; font-size:14px; font-weight:500;
+    letter-spacing:.3px; transition:color .2s;
+  }
+  .nav-links a:hover{ color:var(--text); }
+  .case-toggle{
+    display:flex; align-items:center; gap:8px;
+    font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:1px;
+    color:var(--brass); border:1px solid rgba(201,162,39,0.4); padding:6px 12px;
+    border-radius:20px; text-transform:uppercase;
+  }
+  .case-toggle .dot{ width:6px; height:6px; border-radius:50%; background:var(--string); box-shadow:0 0 8px var(--string); }
+
+  /* hero */
+  .hero{
+    position:relative; min-height:100vh; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center;
+    padding:120px 24px 80px;
+    background:
+      radial-gradient(ellipse at top, rgba(229,72,77,0.06), transparent 60%),
+      repeating-linear-gradient(45deg, var(--cork-a) 0 2px, var(--cork-b) 2px 4px);
+  }
+  .hero::before{
+    content:''; position:absolute; inset:0;
+    background:radial-gradient(ellipse at center, transparent 30%, var(--bg) 95%);
+    pointer-events:none;
+  }
+  .stamp{
+    font-family:'Special Elite',monospace; font-size:12px; letter-spacing:4px;
+    color:var(--string); text-transform:uppercase; margin-bottom:24px;
+    border:1.5px solid var(--string); padding:6px 16px; border-radius:2px;
+    transform:rotate(-2deg); display:inline-block; opacity:0.9;
+    position:relative; z-index:2;
+  }
+  h1.headline{
+    font-family:'Space Grotesk',sans-serif; font-weight:700;
+    font-size:clamp(38px,6vw,76px); line-height:1.05; letter-spacing:-0.02em;
+    max-width:920px; position:relative; z-index:2; margin-bottom:22px;
+  }
+  h1.headline em{
+    font-style:normal; color:var(--string);
+    text-decoration:underline; text-decoration-style:wavy;
+    text-decoration-color:rgba(229,72,77,0.5); text-underline-offset:8px;
+  }
+  .sub{
+    font-size:18px; color:var(--text-dim); max-width:560px; line-height:1.6;
+    position:relative; z-index:2; margin-bottom:44px;
+  }
+  .cta-row{ display:flex; gap:16px; flex-wrap:wrap; justify-content:center; position:relative; z-index:2; margin-bottom:90px;}
+  .btn{
+    font-family:'Inter',sans-serif; font-weight:600; font-size:14px;
+    padding:15px 30px; border-radius:8px; cursor:none; border:none;
+    transition:transform .2s, box-shadow .2s;
+  }
+  .btn-primary{ background:var(--string); color:#fff; box-shadow:0 8px 24px rgba(229,72,77,0.25); }
+  .btn-primary:hover{ transform:translateY(-2px); box-shadow:0 12px 28px rgba(229,72,77,0.35); }
+  .btn-stamp{
+    font-family:'Special Elite',monospace; background:transparent; color:var(--brass);
+    border:1.5px solid var(--brass); letter-spacing:1px; text-transform:uppercase; font-size:13px;
+  }
+  .btn-stamp:hover{ background:rgba(201,162,39,0.08); transform:rotate(-1deg); }
+
+  /* board */
+  .board-wrap{
+    position:relative; width:100%; max-width:980px; height:340px; z-index:2;
+  }
+  svg.strings{ position:absolute; inset:0; width:100%; height:100%; overflow:visible; }
+  .string-path{
+    fill:none; stroke:var(--string); stroke-width:1.6; stroke-linecap:round;
+    stroke-dasharray:600; stroke-dashoffset:600; opacity:.85;
+    animation:draw 1.6s ease forwards;
+  }
+  .string-path.d1{ animation-delay:.6s; }
+  .string-path.d2{ animation-delay:.9s; }
+  .string-path.d3{ animation-delay:1.2s; }
+  @keyframes draw{ to{ stroke-dashoffset:0; } }
+
+  .card{
+    position:absolute; width:150px; background:var(--paper); color:var(--ink);
+    border-radius:2px; padding:12px 12px 16px; box-shadow:0 14px 30px var(--paper-shadow);
+    font-family:'JetBrains Mono',monospace; transform-style:preserve-3d;
+    will-change:transform;
+  }
+  .card .pin{
+    position:absolute; top:-7px; left:50%; transform:translateX(-50%);
+    width:12px; height:12px; border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #f0d778, var(--brass));
+    box-shadow:0 3px 5px rgba(0,0,0,0.4);
+  }
+  .card .bank{ font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--ink-dim); margin-bottom:6px;}
+  .card .amt{ font-size:16px; font-weight:600; }
+  .card .id{ font-size:9px; color:var(--ink-dim); margin-top:6px; }
+  .card.flagged{ background:#fff2f0; border:1.5px dashed var(--string); }
+  .card.flagged .bank{ color:var(--string); font-weight:700; }
+  .card.flagged::after{
+    content:'FLAGGED'; position:absolute; bottom:8px; right:10px;
+    font-family:'Special Elite',monospace; font-size:9px; color:var(--string);
+    border:1px solid var(--string); padding:1px 5px; transform:rotate(-6deg); opacity:0.85;
+  }
+  .c1{ top:10px; left:2%; } .c2{ top:0; left:38%; } .c3{ top:14px; right:2%; }
+  .c-center{ bottom:0; left:50%; transform:translateX(-50%); width:170px; }
+
+  /* sections */
+  section{ padding:120px 24px; position:relative; }
+  .container{ max-width:1080px; margin:0 auto; }
+  .reveal{ opacity:0; transform:translateY(28px); transition:opacity .7s ease, transform .7s ease; }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+
+  .split{ display:grid; grid-template-columns:1fr 1fr; gap:64px; align-items:center; }
+  @media (max-width:860px){ .split{ grid-template-columns:1fr; } }
+  .eyebrow{
+    font-family:'Special Elite',monospace; font-size:11px; letter-spacing:3px;
+    color:var(--brass); text-transform:uppercase; margin-bottom:16px;
+  }
+  h2{ font-family:'Space Grotesk',sans-serif; font-size:clamp(26px,3vw,38px); font-weight:600; line-height:1.2; margin-bottom:18px; }
+  p.lead{ color:var(--text-dim); font-size:16px; line-height:1.7; margin-bottom:20px; }
+
+  .mini-boards{ display:flex; flex-direction:column; gap:20px; }
+  .mini-board{
+    background:var(--board); border:1px solid #2a2530; border-radius:12px; padding:20px;
+    display:flex; align-items:center; gap:16px;
+  }
+  .mini-board .label{ font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-dim); width:90px; flex-shrink:0;}
+  .dots{ display:flex; gap:10px; align-items:center; flex:1; position:relative; height:30px;}
+  .dots .n{ width:10px; height:10px; border-radius:50%; background:#4a4552; position:relative;}
+  .dots.connected .n{ background:var(--string); box-shadow:0 0 8px rgba(229,72,77,0.6);}
+  .dots.connected::before{
+    content:''; position:absolute; left:5px; right:5px; top:50%; height:1px;
+    background:repeating-linear-gradient(to right, var(--string) 0 5px, transparent 5px 9px);
+  }
+
+  /* case files */
+  .files{ display:grid; grid-template-columns:repeat(3,1fr); gap:24px; }
+  @media (max-width:860px){ .files{ grid-template-columns:1fr; } }
+  .file{
+    background:linear-gradient(180deg, #1c1822, #17141a);
+    border:1px solid #2a2530; border-radius:10px; padding:30px 26px;
+    position:relative; transition:transform .3s, border-color .3s;
+  }
+  .file::before{
+    content:''; position:absolute; top:-1px; left:24px; width:56px; height:14px;
+    background:#1c1822; border:1px solid #2a2530; border-bottom:none;
+    border-radius:4px 4px 0 0;
+  }
+  .file:hover{ transform:translateY(-6px); border-color:rgba(229,72,77,0.4); }
+  .file .tag{
+    font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--brass);
+    letter-spacing:1px; margin-bottom:14px; display:block;
+  }
+  .file h3{ font-family:'Space Grotesk',sans-serif; font-size:19px; font-weight:600; margin-bottom:10px; }
+  .file p{ color:var(--text-dim); font-size:14px; line-height:1.6; }
+
+  /* stats */
+  .stats-strip{
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:32px;
+    border-top:1px solid #2a2530; border-bottom:1px solid #2a2530;
+    padding:44px 0;
+  }
+  .stat{ font-family:'JetBrains Mono',monospace; }
+  .stat .num{ font-size:34px; font-weight:600; color:var(--string); }
+  .stat .lab{ font-size:11px; color:var(--text-dim); text-transform:uppercase; letter-spacing:1.5px; margin-top:6px; }
+
+  /* final cta */
+  .final{
+    text-align:center; padding:140px 24px;
+    background:radial-gradient(ellipse at center, rgba(229,72,77,0.08), transparent 65%);
+  }
+  .final h2{ font-size:clamp(30px,4vw,52px); max-width:680px; margin:0 auto 20px; }
+
+  footer{
+    padding:36px 48px; display:flex; justify-content:space-between; align-items:center;
+    color:var(--text-dim); font-size:12px; border-top:1px solid #2a2530;
+    font-family:'JetBrains Mono',monospace;
+  }
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+
+<nav>
+  <div class="logo">DHOKHA<span>.</span></div>
+  <div class="nav-links">
+    <a href="#problem">The Blind Spot</a>
+    <a href="#capabilities">Case Files</a>
+    <a href="#cta">Access</a>
+  </div>
+  <div class="case-toggle"><span class="dot"></span> CASE: OPEN</div>
+</nav>
+
+<section class="hero">
+  <div class="stamp">Cross-Bank Investigation Unit</div>
+  <h1 class="headline">One bank sees a thread.<br><em>Dhokha</em> sees the whole web.</h1>
+  <p class="sub">Fraud rings move across banks on purpose — so no single institution ever sees the full chain. We connect the dots in real time, before the money disappears.</p>
+  <div class="cta-row">
+    <button class="btn btn-primary" data-hover>See it in action</button>
+    <button class="btn btn-stamp" data-hover>Request Case File</button>
+  </div>
+
+  <div class="board-wrap">
+    <svg class="strings" viewBox="0 0 980 340" preserveAspectRatio="none">
+      <path class="string-path d1" d="M 145 55 Q 400 40 460 260" />
+      <path class="string-path d2" d="M 490 40 Q 500 150 490 260" />
+      <path class="string-path d3" d="M 855 55 Q 620 60 530 260" />
+    </svg>
+    <div class="card c1" data-tilt><div class="pin"></div><div class="bank">Bank A · Mumbai</div><div class="amt">₹48,200</div><div class="id">TXN-9F21-A</div></div>
+    <div class="card c2" data-tilt><div class="pin"></div><div class="bank">Bank B · Pune</div><div class="amt">₹1,12,000</div><div class="id">TXN-7C08-B</div></div>
+    <div class="card c3" data-tilt><div class="pin"></div><div class="bank">Bank C · Delhi</div><div class="amt">₹63,500</div><div class="id">TXN-4E77-C</div></div>
+    <div class="card flagged c-center" data-tilt><div class="pin"></div><div class="bank">Consolidated Account</div><div class="amt">₹2,23,700</div><div class="id">MULE-RING-0092</div></div>
+  </div>
+</section>
+
+<section id="problem">
+  <div class="container split">
+    <div class="reveal">
+      <div class="eyebrow">The Blind Spot</div>
+      <h2>Every bank is investigating the same case — separately, and half-blind.</h2>
+      <p class="lead">Each institution only sees its own accounts. A ring that hops through three banks looks, to each of them, like three unrelated stories. Nobody connects the string.</p>
+      <p class="lead">Dhokha sits above the banks, correlating device fingerprints, identities, and transaction timing across institutions — turning three separate, quiet case files into one obvious pattern.</p>
+    </div>
+    <div class="mini-boards reveal">
+      <div class="mini-board">
+        <div class="label">WITHOUT DHOKHA</div>
+        <div class="dots"><div class="n"></div><div class="n"></div><div class="n"></div><div class="n"></div><div class="n"></div></div>
+      </div>
+      <div class="mini-board">
+        <div class="label">WITH DHOKHA</div>
+        <div class="dots connected"><div class="n"></div><div class="n"></div><div class="n"></div><div class="n"></div><div class="n"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="capabilities">
+  <div class="container">
+    <div class="reveal" style="text-align:center; margin-bottom:56px;">
+      <div class="eyebrow">Case Files</div>
+      <h2>Three ways we crack the ring.</h2>
+    </div>
+    <div class="files">
+      <div class="file reveal">
+        <span class="tag">FILE 01 — SPEED</span>
+        <h3>Scored under 200ms</h3>
+        <p>Every transaction gets a behavioral and device-risk score before it settles — fast enough to sit in the live payment path, not just a nightly batch report.</p>
+      </div>
+      <div class="file reveal">
+        <span class="tag">FILE 02 — NETWORK</span>
+        <h3>Cross-bank identity graph</h3>
+        <p>Devices and identities are correlated across institutions, exposing rings that would look like unrelated, isolated accounts to any single bank.</p>
+      </div>
+      <div class="file reveal">
+        <span class="tag">FILE 03 — PROOF</span>
+        <h3>Explainable, not a black box</h3>
+        <p>Every flag ships with the exact reasons behind it — fan-in spikes, new devices, timing anomalies — so a fraud analyst can act with confidence, not guesswork.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <div class="stats-strip reveal">
+      <div class="stat"><div class="num">&lt;200ms</div><div class="lab">Scoring Latency</div></div>
+      <div class="stat"><div class="num">04</div><div class="lab">Swarm Patterns Tracked</div></div>
+      <div class="stat"><div class="num">24/7</div><div class="lab">Live Monitoring</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="final" id="cta">
+  <div class="stamp reveal">Case Status: Active</div>
+  <h2 class="reveal">Stop investigating fraud one bank at a time.</h2>
+  <p class="sub reveal" style="margin-left:auto; margin-right:auto;">See how Dhokha traces a live scam ring across three banks in real time.</p>
+  <div class="cta-row reveal" style="margin-top:36px;">
+    <button class="btn btn-primary" data-hover>Open the Case</button>
+    <button class="btn btn-stamp" data-hover>Talk to the Team</button>
+  </div>
+</section>
+
+<footer>
+  <div>DHOKHA — Shared intelligence for modern banking.</div>
+  <div>CASE FILE NO. 2026-UPI-0004</div>
+</footer>
+
+<script>
+  // custom cursor with lerp follow
+  const cursor = document.getElementById('cursor');
+  let mx=0,my=0,cx=0,cy=0;
+  window.addEventListener('mousemove', e=>{ mx=e.clientX; my=e.clientY; });
+  function loop(){
+    cx += (mx-cx)*0.18; cy += (my-cy)*0.18;
+    cursor.style.left = cx+'px'; cursor.style.top = cy+'px';
+    requestAnimationFrame(loop);
+  }
+  loop();
+  document.querySelectorAll('[data-hover], .card, a, button').forEach(el=>{
+    el.addEventListener('mouseenter', ()=>cursor.classList.add('hover'));
+    el.addEventListener('mouseleave', ()=>cursor.classList.remove('hover'));
+  });
+
+  // parallax tilt on evidence cards
+  const boardWrap = document.querySelector('.board-wrap');
+  const cards = document.querySelectorAll('[data-tilt]');
+  boardWrap.addEventListener('mousemove', e=>{
+    const r = boardWrap.getBoundingClientRect();
+    const relX = (e.clientX - r.left)/r.width - 0.5;
+    const relY = (e.clientY - r.top)/r.height - 0.5;
+    cards.forEach((c,i)=>{
+      const depth = (i+1)*4;
+      c.style.transform = (c.classList.contains('c-center') ? 'translateX(-50%) ' : '') +
+        `rotate(${relX*depth}deg) translateY(${relY*depth}px)`;
+    });
+  });
+  boardWrap.addEventListener('mouseleave', ()=>{
+    cards.forEach(c=>{ c.style.transform = c.classList.contains('c-center') ? 'translateX(-50%)' : ''; });
+  });
+
+  // scroll reveal
+  const io = new IntersectionObserver(entries=>{
+    entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
+  }, {threshold:0.15});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>
