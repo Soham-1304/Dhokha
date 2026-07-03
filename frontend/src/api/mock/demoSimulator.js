@@ -26,7 +26,7 @@ export function runSwarmDemo(swarmType, callbacks) {
     onPhaseChange('stage1');
     const firstFlagged = swarmType === 'B' || swarmType === 'D' ? graph.swarmNodes[graph.swarmNodes.length - 1] : graph.swarmNodes[0];
     onNodeFlag(firstFlagged, 'flagged');
-    onMetricTick({ latency: Math.floor(Math.random() * 30) + 138 });
+    onMetricTick({ avg_latency_ms: Math.floor(Math.random() * 30) + 138 });
     onToast({ type: 'info', message: `Stage 1: Transaction flagged — ${Math.floor(Math.random() * 30) + 138}ms`, id: Date.now() });
   });
 
@@ -55,7 +55,7 @@ export function runSwarmDemo(swarmType, callbacks) {
       confidence: Math.floor(Math.random() * 6) + 91,
       id: Date.now(),
     });
-    onMetricTick({ active_swarms: 1, value_protected: 94200000 + Math.floor(Math.random() * 5000000) });
+    onMetricTick({ active_swarms: 1, value_protected_inr: 94200000 + Math.floor(Math.random() * 5000000) });
   });
 
   t(4200, () => onPhaseChange('done'));

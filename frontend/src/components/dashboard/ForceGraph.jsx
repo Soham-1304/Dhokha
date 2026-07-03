@@ -1,5 +1,4 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
-import ForceGraphLib from 'react-force-graph-2d';
 import { useDashboardStore } from '../../store/dashboardStore';
 import { BANK_COLORS } from '../../api/mock/graphData';
 import { Network } from 'lucide-react';
