@@ -78,7 +78,8 @@ VITE_API_URL=https://your-backend.example.com
 
 For an always-on demo without serverless cold starts, the AWS CLI deployment
 creates one `t3.micro` instance in `ap-south-1`, an encrypted 8 GB `gp3`
-volume, a port-80 security group, and a temporary S3 deployment artifact.
+volume, ports 80/443 security-group rules, and a temporary S3 deployment
+artifact.
 
 ```bash
 AWS_PROFILE='bharath@rama' ./deploy/aws/deploy-ec2.sh
@@ -95,10 +96,24 @@ Remove every resource created by the script when the demo is over:
 ```
 
 EC2 public IPv4 and instance usage may consume AWS credits or incur charges.
-The raw EC2 endpoint is HTTP-only; use the API Gateway step below before
-connecting an HTTPS-hosted frontend.
 
-Add an AWS-provided HTTPS endpoint for hosted frontends:
+The live demo backend uses:
+
+- REST and Swagger: `https://api.dhokha.bharathperni.dev`
+- WebSocket events: `wss://api.dhokha.bharathperni.dev/stream`
+
+After creating an `A` record for `api.dhokha` pointing to the EC2 public IP,
+install the certificate and configure Nginx:
+
+```bash
+./deploy/aws/configure-domain-tls.sh api.dhokha.bharathperni.dev
+```
+
+This installs a Let's Encrypt certificate, redirects HTTP to HTTPS, preserves
+WebSocket upgrade headers, enables automatic certificate renewal, and records
+the custom URLs in the ignored `.aws-deployment.env` file.
+
+API Gateway remains an optional AWS-provided HTTP API fallback:
 
 ```bash
 ./deploy/aws/create-apigateway.sh

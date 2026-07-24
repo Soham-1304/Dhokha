@@ -84,12 +84,29 @@ if [[ "$SECURITY_GROUP_ID" == "None" ]]; then
     --vpc-id "$VPC_ID" \
     --query GroupId \
     --output text)"
-  aws ec2 authorize-security-group-ingress \
+fi
+
+ensure_public_port() {
+  local port="$1"
+  local description="$2"
+  local rule_count
+  rule_count="$(aws ec2 describe-security-groups \
     --profile "$PROFILE" \
     --region "$REGION" \
-    --group-id "$SECURITY_GROUP_ID" \
-    --ip-permissions 'IpProtocol=tcp,FromPort=80,ToPort=80,IpRanges=[{CidrIp=0.0.0.0/0,Description="Dhokha demo HTTP"}]' >/dev/null
-fi
+    --group-ids "$SECURITY_GROUP_ID" \
+    --query "length(SecurityGroups[0].IpPermissions[?IpProtocol==\`tcp\` && FromPort==\`${port}\` && ToPort==\`${port}\`])" \
+    --output text)"
+  if [[ "$rule_count" == "0" ]]; then
+    aws ec2 authorize-security-group-ingress \
+      --profile "$PROFILE" \
+      --region "$REGION" \
+      --group-id "$SECURITY_GROUP_ID" \
+      --ip-permissions "IpProtocol=tcp,FromPort=${port},ToPort=${port},IpRanges=[{CidrIp=0.0.0.0/0,Description=\"${description}\"}]" >/dev/null
+  fi
+}
+
+ensure_public_port 80 "Dhokha demo HTTP"
+ensure_public_port 443 "Dhokha demo HTTPS and WSS"
 
 INSTANCE_ID="$(aws ec2 run-instances \
   --profile "$PROFILE" \
