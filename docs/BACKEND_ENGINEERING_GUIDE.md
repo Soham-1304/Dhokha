@@ -441,7 +441,7 @@ Use `destroy-ec2.sh` after the demo to remove API Gateway, EC2, S3 artifacts, th
 
 ## 15. Current Limitations
 
-- Dashboard, graph explorer, alerts, and swarm controls still contain mock-data paths; only the Transaction Scorer is fully connected to `/health` and `/v1/evaluate`.
+- Transaction Scorer is connected to `/health`, `/v1/evaluate`, `/score`, and `/stream`. Graph Explorer is connected to demo reset/injection, alerts, graph neighborhoods, and live swarm events. The separate dashboard landing feed and case-file presentation still use curated demonstration data.
 - `/score` and `/v1/evaluate` use separate feature/model pipelines.
 - `geo_jump` is currently fixed to zero.
 - No authentication, rate limiting, audit identity, or bank authorization.

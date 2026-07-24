@@ -35,6 +35,13 @@ export function evaluateTransaction(payload) {
   });
 }
 
+export function scoreTransaction(payload) {
+  return request('/score', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function resetDemo() {
   return request('/demo/reset', { method: 'POST' });
 }
@@ -49,6 +56,10 @@ export function injectSwarm(swarmType, size = 5) {
 export function getAlerts(search = {}) {
   const params = new URLSearchParams(search);
   return request(`/alerts${params.size ? `?${params}` : ''}`);
+}
+
+export function getSubgraph(accountId, depth = 2) {
+  return request(`/graph/subgraph/${encodeURIComponent(accountId)}?depth=${depth}`);
 }
 
 export function connectEventStream({
