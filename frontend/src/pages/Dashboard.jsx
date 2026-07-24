@@ -2,10 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as d3 from 'd3';
 import { 
-  Clock, 
-  ArrowRight,
-  Shield,
-  FileText
+  Clock
 } from 'lucide-react';
 import { transactions, stats } from '../data/mockData';
 import './Dashboard.css';

@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import './Sidebar.css';
 
 const navItems = [
@@ -9,8 +9,6 @@ const navItems = [
 ];
 
 export default function Sidebar() {
-  const location = useLocation();
-
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">

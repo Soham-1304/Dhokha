@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { API_BASE_URL, evaluateTransaction, getHealth } from '../api/client';
 import './Scorer.css';
 
 const PRESETS = [
   {
+    id: 'high',
     label: '🔴 Suspicious — Mule Ring',
     data: {
       sender_upi: 'vikram.rao@icici',
@@ -13,8 +15,10 @@ const PRESETS = [
       bank: 'ICICI Bank',
       city: 'Kolkata',
     },
+    modelProfile: 'high',
   },
   {
+    id: 'medium',
     label: '🟡 Moderate — Threshold Dodge',
     data: {
       sender_upi: 'deepak.raj@ybl',
@@ -25,8 +29,10 @@ const PRESETS = [
       bank: 'HDFC Bank',
       city: 'Hyderabad',
     },
+    modelProfile: 'medium',
   },
   {
+    id: 'low',
     label: '🟢 Safe — Normal Payment',
     data: {
       sender_upi: 'sneha.patel@ybl',
@@ -37,60 +43,53 @@ const PRESETS = [
       bank: 'Axis Bank',
       city: 'Bangalore',
     },
+    modelProfile: 'low',
   },
 ];
 
-// Simulated scoring logic (mimics backend response)
-function simulateScore(formData) {
-  const startTime = performance.now();
+function buildModelPayload(formData, profile) {
+  const amount = Number(formData.amount);
 
-  let score = 0;
-  const reasons = [];
-
-  const amt = parseFloat(formData.amount);
-  
-  // 1. Structuring / Velocity checks
-  if (amt >= 49000 && amt <= 50000) {
-    score += 35;
-    reasons.push({ type: 'STRUCTURING_ATTEMPT', detail: `Amount ₹${amt.toLocaleString('en-IN')} is designed to evade the ₹50k PAN/reporting threshold.`, weight: 0.35 });
-  } else if (amt > 100000) {
-    score += 20;
-    reasons.push({ type: 'HIGH_VALUE_ANOMALY', detail: `Transfer value (₹${amt.toLocaleString('en-IN')}) is 400% higher than sender's historical average.`, weight: 0.20 });
+  if (profile === 'high') {
+    return {
+      amount,
+      oldbalanceOrg: amount,
+      newbalanceOrig: 0,
+      oldbalanceDest: 0,
+      newbalanceDest: 0,
+      dest_in_degree: 45,
+      dest_out_degree: 12,
+      dest_pagerank: 0.0024,
+      is_merchant: 0,
+    };
   }
 
-  // 2. Network / Mule checks
-  if (formData.receiver_upi.includes('shell_') || formData.receiver_upi.includes('mule_')) {
-    score += 40;
-    reasons.push({ type: 'KNOWN_MULE_ACCOUNT', detail: `Receiver (${formData.receiver_upi}) was flagged in 3 other fraud cases this week.`, weight: 0.40 });
+  if (profile === 'medium') {
+    return {
+      amount,
+      oldbalanceOrg: 0,
+      newbalanceOrig: 0,
+      oldbalanceDest: 1000,
+      newbalanceDest: 1000,
+      dest_in_degree: 1,
+      dest_out_degree: 50,
+      dest_pagerank: 0.0001,
+      is_merchant: 1,
+    };
   }
 
-  // 3. Device & Identity checks
-  if (formData.device_id === 'DEV-X7F2-ANDROID' || formData.device_id.includes('EMULATOR')) {
-    score += 25;
-    reasons.push({ type: 'DEVICE_FINGERPRINT', detail: `Device ${formData.device_id} is concurrently logged into 14 different bank accounts.`, weight: 0.25 });
-  }
-
-  // 4. IP / Geo checks
-  if (formData.ip.startsWith('103.47') || formData.ip.startsWith('192.168')) {
-    score += 15;
-    reasons.push({ type: 'GEO_ANOMALY', detail: `IP Address ${formData.ip} indicates a known VPN/Proxy exit node.`, weight: 0.15 });
-  }
-
-  // Normal transaction (if nothing triggered)
-  if (score === 0) {
-    score = Math.floor(Math.random() * 15) + 3;
-    reasons.push({ type: 'VERIFIED_SAFE', detail: 'Historical baseline matches. Device and IP are trusted. No network anomalies.', weight: 1.0 });
-  }
-
-  score = Math.min(score, 99);
-  const latency = Math.round(performance.now() - startTime) + Math.floor(Math.random() * 80) + 40; // realistic 40-120ms
-  const confidence = score > 50 ? 0.88 + Math.random() * 0.10 : 0.95 + Math.random() * 0.04;
-
+  const oldbalanceOrg = Math.max(50_000, amount * 10);
+  const oldbalanceDest = 100_000;
   return {
-    risk_score: score,
-    confidence,
-    latency_ms: Math.min(latency, 195),
-    reasons,
+    amount,
+    oldbalanceOrg,
+    newbalanceOrig: oldbalanceOrg - amount,
+    oldbalanceDest,
+    newbalanceDest: oldbalanceDest + amount,
+    dest_in_degree: 3,
+    dest_out_degree: 8,
+    dest_pagerank: 0.0001,
+    is_merchant: 1,
   };
 }
 
@@ -133,17 +132,25 @@ function ScoreGauge({ score, size = 180 }) {
 
 export default function Scorer() {
   const [formData, setFormData] = useState(PRESETS[0].data);
+  const [activePreset, setActivePreset] = useState(PRESETS[0]);
   const [result, setResult] = useState(null);
   const [isScoring, setIsScoring] = useState(false);
+  const [backendStatus, setBackendStatus] = useState('checking');
+  const [error, setError] = useState('');
   const formRef = useRef(null);
 
-  // Auto-load the first preset and score it on mount
   useEffect(() => {
-    setIsScoring(true);
-    setTimeout(() => {
-      setResult(simulateScore(PRESETS[0].data));
-      setIsScoring(false);
-    }, 600);
+    let active = true;
+    getHealth()
+      .then(health => {
+        if (active) setBackendStatus(health.model_ready ? 'online' : 'degraded');
+      })
+      .catch(() => {
+        if (active) setBackendStatus('offline');
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleChange = (field, value) => {
@@ -151,20 +158,37 @@ export default function Scorer() {
   };
 
   const handlePreset = (preset) => {
+    setActivePreset(preset);
     setFormData(preset.data);
     setResult(null);
+    setError('');
   };
 
-  const handleScore = () => {
+  const handleScore = async () => {
     setIsScoring(true);
     setResult(null);
+    setError('');
 
-    // Simulate API call delay
-    setTimeout(() => {
-      const res = simulateScore(formData);
-      setResult(res);
+    try {
+      const response = await evaluateTransaction(
+        buildModelPayload(formData, activePreset.modelProfile),
+      );
+      setResult({
+        risk_score: response.fraud_risk_score,
+        confidence: response.confidence,
+        latency_ms: response.performance.latency_ms,
+        reasons: response.reasons,
+        decision: response.decision,
+        risk_tier: response.risk_tier,
+        model_backend: response.model_backend,
+      });
+      setBackendStatus('online');
+    } catch (requestError) {
+      setError(requestError.message);
+      setBackendStatus('offline');
+    } finally {
       setIsScoring(false);
-    }, 300 + Math.random() * 400);
+    }
   };
 
   const riskClass = result ? (result.risk_score >= 80 ? 'critical' : result.risk_score >= 60 ? 'high' : result.risk_score >= 35 ? 'medium' : 'low') : '';
@@ -174,7 +198,12 @@ export default function Scorer() {
       <div className="topbar">
         <div className="topbar-left">
           <h1>Transaction Scorer</h1>
-          <span className="tag gold">INTERACTIVE DEMO</span>
+          <span className={`tag gold api-state api-state-${backendStatus}`}>
+            {backendStatus === 'online' && 'ONNX MODEL · LIVE'}
+            {backendStatus === 'checking' && 'CONNECTING TO MODEL'}
+            {backendStatus === 'degraded' && 'MODEL DEGRADED'}
+            {backendStatus === 'offline' && 'MODEL OFFLINE'}
+          </span>
         </div>
       </div>
 
@@ -189,10 +218,10 @@ export default function Scorer() {
 
               {/* Presets */}
               <div className="preset-row">
-                {PRESETS.map((p, i) => (
+                {PRESETS.map(p => (
                   <button
-                    key={i}
-                    className={`preset-btn ${JSON.stringify(formData) === JSON.stringify(p.data) ? 'active' : ''}`}
+                    key={p.id}
+                    className={`preset-btn ${activePreset.id === p.id ? 'active' : ''}`}
                     onClick={() => handlePreset(p)}
                   >
                     {p.label}
@@ -236,6 +265,9 @@ export default function Scorer() {
                   <>⚡ Score Transaction</>
                 )}
               </button>
+              <div className="api-endpoint-note">
+                Live endpoint: <span>{API_BASE_URL}/v1/evaluate</span>
+              </div>
             </div>
           </div>
 
@@ -243,9 +275,20 @@ export default function Scorer() {
           <div className="scorer-result-panel">
             {!result && !isScoring && (
               <div className="empty-result card">
-                <div className="empty-icon">🔍</div>
-                <div className="empty-text">Submit a transaction to see<br />real-time fraud scoring</div>
-                <div className="empty-sub">Try different presets to see how<br />the engine responds</div>
+                {error ? (
+                  <>
+                    <div className="empty-icon">⚠️</div>
+                    <div className="empty-text">Backend model unavailable</div>
+                    <div className="empty-sub error-copy">{error}</div>
+                    <div className="empty-sub">Start the FastAPI service on port 8000 and retry.</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="empty-icon">🔍</div>
+                    <div className="empty-text">Submit a transaction to see<br />real-time fraud scoring</div>
+                    <div className="empty-sub">The selected preset is evaluated by<br />the repository’s ONNX model</div>
+                  </>
+                )}
               </div>
             )}
 
@@ -267,7 +310,7 @@ export default function Scorer() {
                   <div className="result-meta">
                     <div className={`risk-badge ${riskClass}`} style={{ fontSize: 12, padding: '5px 14px' }}>
                       <span className="dot" />
-                      {riskClass.toUpperCase()}
+                      {result.decision}
                     </div>
                     <div className="result-confidence">
                       <span className="mono" style={{ fontSize: 11, color: 'var(--text-dim)' }}>CONFIDENCE</span>
@@ -277,6 +320,7 @@ export default function Scorer() {
                       <span className="lightning">⚡</span>
                       Scored in {result.latency_ms}ms
                     </div>
+                    <div className="model-backend-label">{result.model_backend}</div>
                   </div>
                 </div>
 
@@ -287,7 +331,7 @@ export default function Scorer() {
                   {result.reasons.map((r, i) => (
                     <div className="reason-item" key={i}>
                       <div className="reason-icon">
-                        {r.type === 'VERIFIED_SAFE' ? '✅' : '⚠️'}
+                        {r.type === 'BASELINE_CONSISTENT' ? '✅' : '⚠️'}
                       </div>
                       <div className="reason-text">
                         <div className="reason-type">{r.type.replace(/_/g, ' ')}</div>

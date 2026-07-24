@@ -65,6 +65,38 @@
   pointer-events: none;
 }
 
+.api-state {
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.api-state-online {
+  color: var(--safe) !important;
+  border-color: color-mix(in srgb, var(--safe) 55%, transparent) !important;
+}
+
+.api-state-offline {
+  color: var(--risk-critical) !important;
+  border-color: color-mix(in srgb, var(--risk-critical) 55%, transparent) !important;
+}
+
+.api-endpoint-note {
+  margin-top: 10px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-align: center;
+}
+
+.api-endpoint-note span {
+  color: var(--text-secondary);
+}
+
+.error-copy {
+  color: var(--risk-critical);
+  max-width: 360px;
+  margin-bottom: 8px;
+}
+
 .spinner {
   display: inline-block;
   width: 16px;
@@ -193,6 +225,14 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.model-backend-label {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
 }
 
 .result-divider {

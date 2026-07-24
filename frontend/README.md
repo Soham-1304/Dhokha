@@ -1,8 +1,26 @@
-# React + Vite
+# Dhokha frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React/Vite investigation dashboard for the Dhokha fraud scoring service.
 
-Currently, two official plugins are available:
+## Development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+```bash
+npm ci
+npm run dev
+```
+
+During local development, `/api` is proxied to `http://127.0.0.1:8000`.
+Start the FastAPI service from `../backend` before using Transaction Scorer.
+
+For a deployed build, copy `.env.example` to `.env` and set:
+
+```bash
+VITE_API_URL=https://your-backend.example.com
+```
+
+## Checks
+
+```bash
+npm run lint
+npm run build
+```
