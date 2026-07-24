@@ -1,7 +1,8 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import Landing from './pages/Landing';
-import DashboardLayout from './pages/dashboard/DashboardLayout';
-import CustomCursor from './components/landing/CustomCursor';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Landing          from './pages/Landing';
+import DashboardLayout  from './pages/dashboard/DashboardLayout';
+import UserPaymentFlow  from './pages/UserPaymentFlow';
+import CustomCursor     from './components/landing/CustomCursor';
 import './App.css';
 
 function App() {
@@ -10,13 +11,22 @@ function App() {
       future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
     >
       <Routes>
+        {/* Landing page */}
         <Route path="/" element={
           <>
             <CustomCursor />
             <Landing />
           </>
         } />
+
+        {/* User Payment Flow — Dhokha Cyber-Detective Aesthetic */}
+        <Route path="/pay" element={<UserPaymentFlow />} />
+
+        {/* Admin Dashboard */}
         <Route path="/dashboard/*" element={<DashboardLayout />} />
+
+        {/* Catch-all */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

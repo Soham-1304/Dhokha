@@ -80,12 +80,13 @@
 
 /* Cohesive columns container */
 .workspace-columns-container {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-  height: 100%;
-  padding: 76px 32px 32px;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
   gap: 20px;
+  padding: 24px;
+  height: calc(100vh - 48px);
+  overflow: hidden;
 }
 
 /* dossier sheets reset to sharp charcoal panels */
@@ -105,21 +106,11 @@
   display: none;
 }
 
-.workspace-queue-column.dossier-sheet {
-  width: 200px;
-  flex-shrink: 0;
-}
-
-.explorer-graph-canvas-column.dossier-sheet {
-  flex: 1;
-  min-width: 0;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border);
-}
-
+.workspace-queue-column.dossier-sheet,
+.explorer-graph-canvas-column.dossier-sheet,
 .workspace-panel-column.dossier-sheet {
-  width: 260px;
-  flex-shrink: 0;
+  width: 100%;
+  min-width: 0;
 }
 
 .column-title-bar {
@@ -649,4 +640,9 @@
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(3px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+:root[data-theme="light"] .explorer-layout {
+  background: #EFECE6;
+  background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 2px, transparent 2px, transparent 6px);
 }

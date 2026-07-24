@@ -1,8 +1,125 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Zap, Network, ShieldCheck, Users, ArrowDownToDot, Repeat, MonitorSmartphone } from 'lucide-react';
 import Reveal from '../components/landing/Reveal';
 import Board from '../components/landing/Board';
 import ThemeToggle from '../components/ThemeToggle';
+
+// Interactive 2-Stage Graph Carousel Component
+function TwoStageGraphCarousel() {
+  const [activeStage, setActiveStage] = useState(0); // 0 = 5 Scattered, 1 = Connected Ring Graph
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveStage(prev => (prev === 0 ? 1 : 0));
+    }, 4200);
+    return () => clearInterval(timer);
+  }, []);
+
+  const nodes = [
+    { id: 'hdfc',  label: 'HDFC',  x: 65,  y: 45 },
+    { id: 'icici', label: 'ICICI', x: 275, y: 55 },
+    { id: 'paytm', label: 'PAYTM', x: 235, y: 160 },
+    { id: 'kotak', label: 'KOTAK', x: 75,  y: 155 },
+    { id: 'yes',   label: 'YES',   x: 170, y: 100 },
+  ];
+
+  const edges = [
+    { from: 0, to: 4 },
+    { from: 4, to: 1 },
+    { from: 4, to: 2 },
+    { from: 3, to: 4 },
+  ];
+
+  return (
+    <div className="carousel-graph-card">
+      <div className="carousel-tabs">
+        <button
+          className={`carousel-tab-btn ${activeStage === 0 ? 'active' : ''}`}
+          onClick={() => setActiveStage(0)}
+        >
+          <span className="tab-num">01</span>
+          <span>WITHOUT DHOKHA</span>
+        </button>
+        <button
+          className={`carousel-tab-btn ${activeStage === 1 ? 'active connected' : ''}`}
+          onClick={() => setActiveStage(1)}
+        >
+          <span className="tab-num">02</span>
+          <span>WITH DHOKHA</span>
+        </button>
+      </div>
+
+      <div className="carousel-canvas-wrap">
+        <svg viewBox="0 0 340 210" className="carousel-graph-svg">
+          {activeStage === 1 && edges.map((e, idx) => {
+            const n1 = nodes[e.from];
+            const n2 = nodes[e.to];
+            return (
+              <g key={`edge-${idx}`}>
+                <line
+                  x1={n1.x} y1={n1.y}
+                  x2={n2.x} y2={n2.y}
+                  stroke="#e5484d"
+                  strokeWidth="2.5"
+                  strokeDasharray="6 4"
+                  className="laser-line-anim"
+                />
+                <circle r="4" fill="#e5484d">
+                  <animate attributeName="cx" values={`${n1.x};${n2.x};${n1.x}`} dur={`${2 + idx * 0.4}s`} repeatCount="indefinite" />
+                  <animate attributeName="cy" values={`${n1.y};${n2.y};${n1.y}`} dur={`${2 + idx * 0.4}s`} repeatCount="indefinite" />
+                </circle>
+              </g>
+            );
+          })}
+
+          {nodes.map((n) => {
+            const isConn = activeStage === 1;
+            return (
+              <g key={n.id} transform={`translate(${n.x}, ${n.y})`} className="carousel-node-group">
+                <circle
+                  r={isConn ? 9 : 8}
+                  fill={isConn ? '#e5484d' : 'var(--bg-card, #1c1822)'}
+                  stroke={isConn ? '#e5484d' : 'var(--border, #4a4552)'}
+                  strokeWidth="2"
+                  style={{ transition: 'all 0.4s ease' }}
+                />
+                <circle
+                  r="3"
+                  fill={isConn ? '#ffffff' : '#7a756c'}
+                  style={{ transition: 'all 0.4s ease' }}
+                />
+                <text
+                  y="26"
+                  textAnchor="middle"
+                  fill={isConn ? '#e5484d' : 'var(--text-dim, #7a756c)'}
+                  fontSize="10"
+                  fontWeight={isConn ? '700' : '500'}
+                  fontFamily="'JetBrains Mono', monospace"
+                  style={{ transition: 'fill 0.4s ease' }}
+                >
+                  {n.label}
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+
+      <div className="carousel-footer-bar">
+        {activeStage === 0 ? (
+          <div className="carousel-status-chip chip-scattered">
+            <span>● STAGE 1: 5 SCATTERED ACCOUNTS (SILOED)</span>
+          </div>
+        ) : (
+          <div className="carousel-status-chip chip-connected">
+            <span>⚡ STAGE 2: CROSS-BANK RING EXPOSED</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function Landing() {
   return (
@@ -40,15 +157,9 @@ export default function Landing() {
             <p className="lead">Each institution only sees its own accounts. A ring that hops through three banks looks, to each of them, like three unrelated stories. Nobody connects the string.</p>
             <p className="lead">Dhokha sits above the banks, correlating device fingerprints, identities, and transaction timing across institutions — turning three separate, quiet case files into one obvious pattern.</p>
           </Reveal>
-          <Reveal className="mini-boards">
-            <div className="mini-board">
-              <div className="label">WITHOUT DHOKHA</div>
-              <div className="dots"><div className="n"></div><div className="n"></div><div className="n"></div><div className="n"></div><div className="n"></div></div>
-            </div>
-            <div className="mini-board">
-              <div className="label">WITH DHOKHA</div>
-              <div className="dots connected"><div className="n"></div><div className="n"></div><div className="n"></div><div className="n"></div><div className="n"></div></div>
-            </div>
+
+          <Reveal>
+            <TwoStageGraphCarousel />
           </Reveal>
         </div>
       </section>

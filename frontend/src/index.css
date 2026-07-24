@@ -1098,20 +1098,147 @@ svg.strings { position: absolute; inset: 0; width: 100%; height: 100%; overflow:
   color: var(--brass); text-transform: uppercase; margin-bottom: 16px;
 }
 .landing-page h2 { font-family: 'Space Grotesk', sans-serif; font-size: clamp(26px, 3vw, 38px); font-weight: 600; line-height: 1.2; margin-bottom: 18px; }
-p.lead { color: var(--text-dim); font-size: 16px; line-height: 1.7; margin-bottom: 20px; }
-
-.mini-boards { display: flex; flex-direction: column; gap: 20px; }
-.mini-board {
-  background: var(--board); border: 1px solid #2a2530; border-radius: 12px; padding: 20px;
-  display: flex; align-items: center; gap: 16px;
+p.lead {
+  color: var(--text-dim);
+  font-size: 15.5px;
+  line-height: 1.75;
+  margin-bottom: 20px;
+  overflow: visible;
+  padding-bottom: 4px;
 }
-.mini-board .label { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-dim); width: 90px; flex-shrink: 0;}
-.dots { display: flex; gap: 10px; align-items: center; flex: 1; position: relative; height: 30px;}
-.dots .n { width: 10px; height: 10px; border-radius: 50%; background: #4a4552; position: relative;}
-.dots.connected .n { background: var(--string); box-shadow: 0 0 8px rgba(229,72,77,0.6);}
-.dots.connected::before {
-  content: ''; position: absolute; left: 5px; right: 5px; top: 50%; height: 1px;
-  background: repeating-linear-gradient(to right, var(--string) 0 5px, transparent 5px 9px);
+
+/* 2-Stage Graph Carousel Widget */
+.carousel-graph-card {
+  background: var(--bg-surface, #17141a);
+  border: 1px solid var(--border, #2a2530);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+}
+
+.carousel-tabs {
+  display: flex;
+  background: var(--bg-card, #1c1822);
+  border-bottom: 1px solid var(--border, #2a2530);
+  padding: 6px;
+  gap: 6px;
+}
+
+.carousel-tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim, #7a756c);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.carousel-tab-btn:hover {
+  color: var(--text, #eeeae1);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.carousel-tab-btn.active {
+  background: var(--bg-surface, #17141a);
+  border-color: var(--border, #2a2530);
+  color: var(--text, #eeeae1);
+}
+
+.carousel-tab-btn.active.connected {
+  border-color: rgba(229, 72, 77, 0.4);
+  color: #e5484d;
+  background: rgba(229, 72, 77, 0.08);
+}
+
+.tab-num {
+  font-size: 9px;
+  opacity: 0.6;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.carousel-canvas-wrap {
+  position: relative;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image: radial-gradient(rgba(229, 72, 77, 0.04) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+
+.carousel-graph-svg {
+  width: 100%;
+  max-width: 360px;
+  height: 210px;
+  overflow: visible;
+}
+
+.carousel-footer-bar {
+  padding: 10px 16px;
+  background: var(--bg-card, #1c1822);
+  border-top: 1px solid var(--border, #2a2530);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.carousel-status-chip {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.chip-scattered {
+  color: var(--text-dim, #7a756c);
+  background: rgba(122, 117, 108, 0.12);
+  border: 1px solid rgba(122, 117, 108, 0.25);
+}
+
+.chip-connected {
+  color: #e5484d;
+  background: rgba(229, 72, 77, 0.12);
+  border: 1px solid rgba(229, 72, 77, 0.35);
+  animation: tag-pulse 2s infinite ease-in-out;
+}
+
+:root[data-theme="light"] .carousel-graph-card {
+  background: #FFFFFF;
+  border-color: #ECEAF5;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.08);
+}
+:root[data-theme="light"] .carousel-tabs {
+  background: #F9F8FC;
+  border-bottom-color: #ECEAF5;
+}
+:root[data-theme="light"] .carousel-tab-btn.active {
+  background: #FFFFFF;
+  border-color: #ECEAF5;
+  color: #0F0D1F;
+}
+:root[data-theme="light"] .carousel-tab-btn.active.connected {
+  background: #FFF5F5;
+  border-color: rgba(229, 72, 77, 0.4);
+  color: #e5484d;
+}
+:root[data-theme="light"] .carousel-footer-bar {
+  background: #F9F8FC;
+  border-top-color: #ECEAF5;
 }
 
 /* case files */

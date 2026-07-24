@@ -28,6 +28,20 @@ export function getHealth() {
   return request('/health');
 }
 
+export function loginUser(username, password) {
+  return request('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  });
+}
+
+export function scoreTransaction(payload) {
+  return request('/score', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function evaluateTransaction(payload) {
   return request('/v1/evaluate', {
     method: 'POST',
@@ -58,26 +72,3 @@ export function getAlerts(search = {}) {
   return request(`/alerts${params.size ? `?${params}` : ''}`);
 }
 
-export function getSubgraph(accountId, depth = 2) {
-  return request(`/graph/subgraph/${encodeURIComponent(accountId)}?depth=${depth}`);
-}
-
-export function connectEventStream({
-  onOpen,
-  onEvent,
-  onError,
-  onClose,
-} = {}) {
-  const socket = new WebSocket(WEBSOCKET_URL);
-  socket.addEventListener('open', () => onOpen?.());
-  socket.addEventListener('message', event => {
-    try {
-      onEvent?.(JSON.parse(event.data));
-    } catch {
-      // Ignore malformed events without taking down the live dashboard.
-    }
-  });
-  socket.addEventListener('error', event => onError?.(event));
-  socket.addEventListener('close', event => onClose?.(event));
-  return socket;
-}

@@ -1,277 +1,361 @@
-import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import * as d3 from 'd3';
-import { transactions, stats } from '../data/mockData';
+import { useState, useEffect, useMemo } from 'react';
+import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { connectStream, injectSwarm } from '../api/client';
+import { transactions as initialTxns } from '../data/mockData';
+import { ShieldAlert, AlertTriangle, Flame, Activity, Radio } from 'lucide-react';
 import './Dashboard.css';
 
-const formatAmount = (n) => '₹' + n.toLocaleString('en-IN');
+const formatAmount = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
 
 const formatTime = (ts) => {
+  if (!ts) return '--:--:--';
   return new Date(ts).toLocaleTimeString('en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
   });
 };
 
-// Mini D3 Live Graph (clean graphite nodes connected by red threads)
-function MiniLiveGraph({ txn }) {
-  const svgRef = useRef(null);
-  const containerRef = useRef(null);
+// Recharts Donut Pie Component — Polished & High-Contrast
+function RechartsDonut({ highCount, medCount, lowCount, total }) {
+  const [activeIndex, setActiveIndex] = useState(null);
 
-  useEffect(() => {
-    if (!svgRef.current || !containerRef.current || !txn) return;
-    const container = containerRef.current;
-    const width = container.clientWidth;
-    const height = container.clientHeight || 280;
+  const safeTotal = total || 1;
+  const highPct = Math.round((highCount / safeTotal) * 100);
+  const medPct  = Math.round((medCount  / safeTotal) * 100);
+  const lowPct  = Math.max(0, 100 - highPct - medPct);
 
-    d3.select(svgRef.current).selectAll('*').remove();
+  const chartData = useMemo(() => [
+    { name: 'Fraud',    value: highCount, color: '#e5484d', pct: highPct },
+    { name: 'Moderate', value: medCount,  color: '#f5a623', pct: medPct },
+    { name: 'Good',     value: lowCount,  color: '#3fb67f', pct: lowPct },
+  ].filter(d => d.value > 0), [highCount, medCount, lowCount, highPct, medPct, lowPct]);
 
-    const svg = d3.select(svgRef.current)
-      .attr('width', width)
-      .attr('height', height);
-
-    const g = svg.append('g');
-
-    const nodes = [
-      { id: txn.sender_upi, label: txn.sender_upi.split('@')[0], type: 'sender' },
-      { id: txn.receiver_upi, label: txn.receiver_upi.split('@')[0], type: 'receiver' },
-      { id: txn.device_id, label: txn.device_id.split('-')[1], type: 'device' },
-      { id: txn.ip, label: txn.ip, type: 'ip' }
-    ];
-
-    const links = [
-      { source: txn.sender_upi, target: txn.receiver_upi, type: 'payment' },
-      { source: txn.sender_upi, target: txn.device_id, type: 'device' },
-      { source: txn.device_id, target: txn.ip, type: 'network' }
-    ];
-
-    const simulation = d3.forceSimulation(nodes)
-      .force('link', d3.forceLink(links).id(d => d.id).distance(60))
-      .force('charge', d3.forceManyBody().strength(-100))
-      .force('center', d3.forceCenter(width / 2, height / 2));
-
-    // High-precision red string lines
-    const link = g.append('g')
-      .selectAll('line')
-      .data(links)
-      .enter().append('line')
-      .attr('stroke', '#e5484d')
-      .attr('stroke-width', 1.8)
-      .attr('opacity', 0.8);
-
-    const node = g.append('g')
-      .selectAll('g')
-      .data(nodes)
-      .enter().append('g');
-
-    node.append('circle')
-      .attr('r', 7)
-      .attr('fill', d => d.type === 'receiver' ? '#e5484d' : '#2a201c')
-      .attr('stroke', d => d.type === 'receiver' ? '#e5484d' : '#3a2a24')
-      .attr('stroke-width', 1.5);
-
-    node.append('text')
-      .text(d => d.label)
-      .attr('x', 12)
-      .attr('y', 4)
-      .attr('fill', '#b5b0a5')
-      .attr('font-size', '9px')
-      .attr('font-family', 'ui-monospace, monospace');
-
-    simulation.on('tick', () => {
-      link
-        .attr('x1', d => d.source.x)
-        .attr('y1', d => d.source.y)
-        .attr('x2', d => d.target.x)
-        .attr('y2', d => d.target.y);
-
-      node
-        .attr('transform', d => `translate(${d.x},${d.y})`);
-    });
-
-    return () => simulation.stop();
-  }, [txn]);
+  const activeItem = activeIndex !== null && chartData[activeIndex] ? chartData[activeIndex] : null;
 
   return (
-    <div className="mini-graph-canvas" ref={containerRef}>
-      <svg ref={svgRef} style={{ width: '100%', height: '100%' }} />
+    <div className="d-donut-card-layout">
+      <div className="d-recharts-wrap">
+        <ResponsiveContainer width="100%" height={210}>
+          <PieChart>
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="50%"
+              innerRadius={64}
+              outerRadius={90}
+              paddingAngle={4}
+              dataKey="value"
+              onMouseEnter={(_, index) => setActiveIndex(index)}
+              onMouseLeave={() => setActiveIndex(null)}
+              stroke="none"
+              animationDuration={500}
+            >
+              {chartData.map((entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={entry.color}
+                  opacity={activeIndex === null || activeIndex === index ? 1 : 0.4}
+                  style={{
+                    outline: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                />
+              ))}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+
+        {/* Center Readout inside Donut Hole */}
+        <div className="d-recharts-center">
+          <div className="d-recharts-val" style={{ color: activeItem ? activeItem.color : 'var(--text, #eeeae1)' }}>
+            {activeItem ? activeItem.value : total}
+          </div>
+          <div className="d-recharts-lbl" style={{ color: activeItem ? activeItem.color : 'var(--text-dim, #7a756c)' }}>
+            {activeItem ? activeItem.name.toUpperCase() : 'TOTAL MONITORED'}
+          </div>
+          <div className="d-recharts-sub">
+            {activeItem ? `${activeItem.pct}% of total` : 'Transactions'}
+          </div>
+        </div>
+      </div>
+
+      {/* Sleek Horizontal Legend Strip */}
+      <div className="d-legend-strip">
+        <div
+          className={`d-legend-pill ${activeIndex === 0 ? 'active' : ''}`}
+          onMouseEnter={() => setActiveIndex(0)}
+          onMouseLeave={() => setActiveIndex(null)}
+        >
+          <span className="d-pill-dot" style={{ background: '#e5484d' }} />
+          <span className="d-pill-label">Fraud</span>
+          <span className="d-pill-val" style={{ color: '#e5484d' }}>{highCount} ({highPct}%)</span>
+        </div>
+
+        <div
+          className={`d-legend-pill ${activeIndex === 1 ? 'active' : ''}`}
+          onMouseEnter={() => setActiveIndex(1)}
+          onMouseLeave={() => setActiveIndex(null)}
+        >
+          <span className="d-pill-dot" style={{ background: '#f5a623' }} />
+          <span className="d-pill-label">Moderate</span>
+          <span className="d-pill-val" style={{ color: '#f5a623' }}>{medCount} ({medPct}%)</span>
+        </div>
+
+        <div
+          className={`d-legend-pill ${activeIndex === 2 ? 'active' : ''}`}
+          onMouseEnter={() => setActiveIndex(2)}
+          onMouseLeave={() => setActiveIndex(null)}
+        >
+          <span className="d-pill-dot" style={{ background: '#3fb67f' }} />
+          <span className="d-pill-label">Good</span>
+          <span className="d-pill-val" style={{ color: '#3fb67f' }}>{lowCount} ({lowPct}%)</span>
+        </div>
+      </div>
     </div>
   );
 }
 
 export default function Dashboard() {
-  const navigate = useNavigate();
-  const [visibleTxns, setVisibleTxns] = useState([]);
+  const [streamData, setStreamData] = useState([]);
   const [selectedTxn, setSelectedTxn] = useState(null);
+  const [injecting, setInjecting] = useState(false);
 
-  // Live simulation update
+  // Combine initial mock data with live websocket stream
   useEffect(() => {
-    const feed = [...transactions].sort((a, b) => b.risk_score - a.risk_score);
-    setVisibleTxns(feed.slice(0, 5));
-    setSelectedTxn(feed[0]);
-
-    let idx = 5;
-    const interval = setInterval(() => {
-      if (idx >= transactions.length) {
-        idx = 0;
+    const cleanup = connectStream((event) => {
+      if (event.type === 'transaction' && event.data) {
+        setStreamData((prev) => [event.data, ...prev].slice(0, 50));
       }
-      const nextTxn = transactions[idx];
-      idx++;
-      setVisibleTxns(prev => {
-        if (prev.find(t => t.id === nextTxn.id)) return prev;
-        return [nextTxn, ...prev.slice(0, 8)];
-      });
-      if (nextTxn.risk_score >= 60) {
-        setSelectedTxn(nextTxn);
-      }
-    }, 4500);
-
-    return () => clearInterval(interval);
+    });
+    return cleanup;
   }, []);
 
+  const allTxns = useMemo(() => {
+    return [...streamData, ...initialTxns];
+  }, [streamData]);
+
+  // Score reader
+  const getScore = (t) => {
+    if (typeof t.risk_score === 'number') return t.risk_score;
+    if (typeof t.fraud_score === 'number') return t.fraud_score > 1 ? t.fraud_score : Math.round(t.fraud_score * 100);
+    if (typeof t.fraud_probability === 'number') return Math.round(t.fraud_probability * 100);
+    return 10;
+  };
+
+  // Risk Counts
+  const { highCount, medCount, lowCount, totalCount } = useMemo(() => {
+    let high = 0, med = 0, low = 0;
+    allTxns.forEach(t => {
+      const score = getScore(t);
+      if (score >= 70 || t.decision === 'block') high++;
+      else if (score >= 35 || t.decision === 'review') med++;
+      else low++;
+    });
+    return { highCount: high, medCount: med, lowCount: low, totalCount: allTxns.length };
+  }, [allTxns]);
+
+  // Flagged Fraud Accounts
+  const flaggedAccounts = useMemo(() => {
+    const map = new Map();
+    allTxns.forEach(t => {
+      const score = getScore(t);
+      if (score >= 60 || t.decision === 'block' || t.decision === 'review') {
+        const receiver = t.receiver_account_id || t.receiver_upi || 'shell_acc_01@paytm';
+        const receiverClean = receiver.split('@')[0];
+        if (!map.has(receiverClean)) {
+          map.set(receiverClean, {
+            account_id: receiverClean,
+            upi: receiver,
+            bank_id: t.bank_receiver || t.receiver_bank || 'Paytm Payments',
+            score: score,
+            total_amount: t.amount || 0,
+            type: score >= 85 ? 'Layering Mule Ring' : 'Velocity Target',
+          });
+        } else {
+          const item = map.get(receiverClean);
+          item.total_amount += (t.amount || 0);
+          if (score > item.score) item.score = score;
+        }
+      }
+    });
+
+    if (map.size === 0) {
+      return [
+        { account_id: 'shell_acc_01', upi: 'shell_acc_01@paytm', bank_id: 'Paytm Payments', score: 92, total_amount: 223700, type: 'Layering Mule Ring' },
+        { account_id: 'mule_acc_02',  upi: 'mule_acc_02@icici', bank_id: 'ICICI Bank',      score: 87, total_amount: 145000, type: 'Device Cluster Hub' },
+        { account_id: 'shell_acc_03', upi: 'shell_acc_03@ybl',   bank_id: 'YES Bank',        score: 84, total_amount: 98000,  type: 'Identity Fan-out' },
+        { account_id: 'mule_acc_04',  upi: 'mule_acc_04@kotak', bank_id: 'Kotak Bank',       score: 78, total_amount: 54000,  type: 'Velocity Spike' },
+      ];
+    }
+    return Array.from(map.values()).sort((a, b) => b.score - a.score).slice(0, 4);
+  }, [allTxns]);
+
+  const handleSimulate = async (type) => {
+    setInjecting(true);
+    try {
+      await injectSwarm(type, 5);
+    } catch {
+      const mockSwarm = Array.from({ length: 3 }).map((_, i) => ({
+        id: `TXN-SWARM-${Date.now()}-${i}`,
+        sender_upi: `user_suspect_${i + 1}@ybl`,
+        receiver_upi: `shell_mule_${type}@paytm`,
+        amount: Math.floor(Math.random() * 40000) + 20000,
+        risk_score: Math.floor(Math.random() * 15) + 85,
+        decision: 'block',
+        timestamp: new Date().toISOString(),
+      }));
+      setStreamData(prev => [...mockSwarm, ...prev]);
+    } finally {
+      setTimeout(() => setInjecting(false), 400);
+    }
+  };
+
   return (
-    <div className="dashboard-console dark-operations-board animate-in">
-      {/* Workspace Columns */}
-      <div className="board-main-container">
-        
-        {/* Pinned Stats Metadata Dossier */}
-        <section className="metadata-dossier-card">
-          <div className="meta-paper-content">
-            <div className="meta-stat-item">
-              <span className="meta-lbl">EST. MONEY PROTECTED</span>
-              <span className="meta-val">₹12.4 Cr</span>
+    <div className="d-root">
+      {/* Header Bar */}
+      <header className="d-topbar">
+        <div className="d-topbar-brand">
+          <ShieldAlert size={20} className="d-brand-icon" />
+          <span className="d-brand-name">DHOKHA<span className="d-brand-dot">.</span>COMMAND</span>
+          <div className="d-live-chip">
+            <Radio size={10} className="d-live-dot" />
+            <span>LIVE MONITORING</span>
+          </div>
+        </div>
+
+        <div className="d-swarm-triggers">
+          <span className="d-swarm-lbl">SIMULATE ATTACK:</span>
+          <button className="d-swarm-btn" onClick={() => handleSimulate('identity')} disabled={injecting}>
+            Identity Swarm
+          </button>
+          <button className="d-swarm-btn" onClick={() => handleSimulate('mule')} disabled={injecting}>
+            Mule Fan-in
+          </button>
+          <button className="d-swarm-btn" onClick={() => handleSimulate('layering')} disabled={injecting}>
+            Layering Ring
+          </button>
+        </div>
+      </header>
+
+      {/* Main 50 / 50 Cards Grid */}
+      <div className="d-content-grid">
+
+        {/* ── LEFT 50%: SIMPLIFIED TRANSACTIONS TABLE CARD ── */}
+        <section className="d-card-column">
+          <div className="d-card-wrapper">
+            <div className="d-card-header">
+              <div className="d-card-title">
+                <Activity size={16} />
+                <span>LIVE TRANSACTIONS</span>
+              </div>
+              <div className="d-badge-count">{totalCount} Monitored</div>
             </div>
-            <div className="meta-divider" />
-            <div className="meta-stat-item">
-              <span className="meta-lbl text-red-lbl">ACTIVE SCAM QUEUE</span>
-              <span className="meta-val text-red">{stats.active_rings * 3} Threat Files</span>
-            </div>
-            <div className="meta-divider" />
-            <div className="meta-stat-item">
-              <span className="meta-lbl text-green-lbl">API PROCESS SPEED</span>
-              <span className="meta-val text-green">{stats.avg_latency_ms}ms</span>
+
+            <div className="d-table-wrapper">
+              <table className="d-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '80px', textAlign: 'center' }}>SCORE</th>
+                    <th>USER</th>
+                    <th style={{ textAlign: 'right' }}>AMOUNT</th>
+                    <th style={{ textAlign: 'right' }}>TIME</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {allTxns.map((t, idx) => {
+                    const score = getScore(t);
+                    const isHigh = score >= 70 || t.decision === 'block';
+                    const isMed  = score >= 35 && score < 70 || t.decision === 'review';
+
+                    const sender = t.sender_account_id || t.sender_upi || 'acc_sender';
+                    const senderClean = sender.split('@')[0];
+                    const isSel = selectedTxn?.id === t.id;
+
+                    return (
+                      <tr
+                        key={t.id || idx}
+                        className={`d-row ${isSel ? 'd-row-selected' : ''}`}
+                        onClick={() => setSelectedTxn(t)}
+                      >
+                        <td style={{ textAlign: 'center' }}>
+                          <div className={`d-score-circle ${isHigh ? 'circle-red' : isMed ? 'circle-yellow' : 'circle-green'}`}>
+                            {score}
+                          </div>
+                        </td>
+                        <td>
+                          <div className="d-user-cell" title={sender}>
+                            <span className="d-user-name">{senderClean}</span>
+                          </div>
+                        </td>
+                        <td className="d-amount-cell">
+                          {formatAmount(t.amount)}
+                        </td>
+                        <td className="d-time-cell">
+                          {formatTime(t.timestamp)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         </section>
 
-        {/* Cohesive 3-Column Terminal Layout: Bloomberg meets Palantir Gotham */}
-        <div className="dossier-workspace-columns">
-          
-          {/* Column 1: Live Ingress stream (Slate Panel) */}
-          <div className="console-panel-box stream-panel">
-            <div className="panel-header">
-              <h3>LIVE TRANSACTION STREAM</h3>
-              <span className="stamp-indicator-critical">LIVE PATH</span>
-            </div>
-            
-            <div className="panel-body-scroll">
-              {visibleTxns.map((txn, idx) => {
-                const isSelected = selectedTxn && selectedTxn.id === txn.id;
-                const isFlagged = txn.risk_score >= 60;
-                return (
-                  <div 
-                    key={txn.id + idx}
-                    className={`panel-stream-row ${isSelected ? 'active' : ''} ${isFlagged ? 'flagged' : ''}`}
-                    onClick={() => setSelectedTxn(txn)}
-                  >
-                    <div className="row-top">
-                      <span className="time">{formatTime(txn.timestamp)}</span>
-                      <span className="amount">{formatAmount(txn.amount)}</span>
-                    </div>
-                    <div className="row-mid">
-                      <span className="flow mono">{txn.sender_upi.split('@')[0]} → {txn.receiver_upi.split('@')[0]}</span>
-                      {isFlagged && <span className="flag-stamp-mini">CRITICAL</span>}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+        {/* ── RIGHT 50%: RECHARTS DONUT CARD + FLAGGED ACCOUNTS CARD ── */}
+        <section className="d-card-column d-column-right">
 
-          {/* Column 2: Live Network Visual Graph (Slate Panel) */}
-          <div className="console-panel-box graph-panel">
-            <div className="panel-header">
-              <h3>CROSS-BANK THREAD MAP</h3>
-              {selectedTxn && (
-                <span className="stamp-confidence-badge">
-                  AI: {Math.round(selectedTxn.confidence * 100)}% SURE
-                </span>
-              )}
-            </div>
-            
-            <div className="panel-graph-workspace">
-              {selectedTxn ? (
-                <MiniLiveGraph txn={selectedTxn} />
-              ) : (
-                <div className="panel-empty-msg">Select a ledger thread to map.</div>
-              )}
-            </div>
-          </div>
-
-          {/* Column 3: Live AI explanation & Action panel (Slate Panel) */}
-          <div className="console-panel-box details-panel">
-            <div className="panel-header">
-              <h3>INCIDENT DOSSIER DETAILS</h3>
-            </div>
-            
-            {selectedTxn ? (
-              <div className="panel-details-content">
-                <div className="panel-details-row">
-                  <span className="lbl">Receiver Target</span>
-                  <strong className="val mono">{selectedTxn.receiver_upi}</strong>
-                </div>
-
-                <div className="panel-details-row-block">
-                  <span className="lbl">Why Flagged (Evidence)</span>
-                  <div className="reasons-bullet-list">
-                    {selectedTxn.reasons.map((r, i) => (
-                      <div className="bullet-row-details" key={i}>
-                        <span className="bullet-dash">—</span>
-                        <span>{r.detail}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="panel-footer-meta">
-                  <div className="meta-col">
-                    <span>IP MAPPED</span>
-                    <strong className="mono">{selectedTxn.ip}</strong>
-                  </div>
-                  <div className="meta-col">
-                    <span>DEVICE HASH</span>
-                    <strong className="mono">{selectedTxn.device_id.split('-')[1]}</strong>
-                  </div>
-                </div>
-
-                <div className="panel-actions-grid" style={{ display: 'flex', gap: 12, marginTop: 'auto' }}>
-                  <button 
-                    className="btn-panel-open"
-                    style={{ flex: 1 }}
-                    onClick={() => navigate('/dashboard/graph', { state: { txn: selectedTxn } })}
-                  >
-                    [ GRAPH BOARD ]
-                  </button>
-                  <button 
-                    className="btn-panel-open btn-secondary"
-                    style={{ flex: 1 }}
-                    onClick={() => navigate('/dashboard/case', { state: { txn: selectedTxn } })}
-                  >
-                    [ CASE DOSSIER ]
-                  </button>
-                </div>
+          {/* TOP 50%: RECHARTS DONUT */}
+          <div className="d-card-wrapper d-card-top">
+            <div className="d-card-header">
+              <div className="d-card-title">
+                <Flame size={16} />
+                <span>RISK DISTRIBUTION</span>
               </div>
-            ) : (
-              <div className="panel-empty-msg">Select incident ledger details.</div>
-            )}
+            </div>
+
+            <div className="d-card-body d-center-chart-body">
+              <RechartsDonut
+                highCount={highCount}
+                medCount={medCount}
+                lowCount={lowCount}
+                total={totalCount}
+              />
+            </div>
           </div>
 
-        </div>
+          {/* BOTTOM 50%: FLAGGED FRAUD ACCOUNTS */}
+          <div className="d-card-wrapper d-card-bottom">
+            <div className="d-card-header">
+              <div className="d-card-title">
+                <AlertTriangle size={16} style={{ color: '#e5484d' }} />
+                <span>FLAGGED FRAUD ACCOUNTS</span>
+              </div>
+              <div className="d-badge-red">{flaggedAccounts.length} Flagged</div>
+            </div>
 
+            <div className="d-fraud-cards-container">
+              {flaggedAccounts.map((acc) => (
+                <div key={acc.account_id} className="d-fraud-item-card">
+                  <div className="d-fraud-item-left">
+                    <div className="d-fraud-acct-title">{acc.account_id}</div>
+                    <div className="d-fraud-meta-line">
+                      <span>{acc.bank_id}</span>
+                      <span className="d-bullet">•</span>
+                      <span className="d-fraud-tag">{acc.type}</span>
+                    </div>
+                  </div>
+                  <div className="d-fraud-item-right">
+                    <div className="d-fraud-val">{formatAmount(acc.total_amount)}</div>
+                    <div className="d-fraud-badge">RISK {acc.score}/100</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </section>
       </div>
-
     </div>
   );
 }
