@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { API_BASE_URL, evaluateTransaction, getHealth } from '../api/client';
+import {
+  API_BASE_URL,
+  connectEventStream,
+  evaluateTransaction,
+  getHealth,
+} from '../api/client';
 import './Scorer.css';
 
 const PRESETS = [
@@ -136,6 +141,7 @@ export default function Scorer() {
   const [result, setResult] = useState(null);
   const [isScoring, setIsScoring] = useState(false);
   const [backendStatus, setBackendStatus] = useState('checking');
+  const [streamStatus, setStreamStatus] = useState('connecting');
   const [error, setError] = useState('');
   const formRef = useRef(null);
 
@@ -151,6 +157,15 @@ export default function Scorer() {
     return () => {
       active = false;
     };
+  }, []);
+
+  useEffect(() => {
+    const socket = connectEventStream({
+      onOpen: () => setStreamStatus('online'),
+      onError: () => setStreamStatus('offline'),
+      onClose: () => setStreamStatus('offline'),
+    });
+    return () => socket.close();
   }, []);
 
   const handleChange = (field, value) => {
@@ -207,6 +222,10 @@ export default function Scorer() {
           {backendStatus === 'checking' && 'Connecting to model'}
           {backendStatus === 'degraded' && 'Model degraded'}
           {backendStatus === 'offline' && 'Model offline'}
+          {' · '}
+          {streamStatus === 'online' && 'Stream live'}
+          {streamStatus === 'connecting' && 'Stream connecting'}
+          {streamStatus === 'offline' && 'Stream offline'}
         </span>
       </div>
 
