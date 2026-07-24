@@ -40,36 +40,21 @@ TimeoutStartSec=180
 WantedBy=multi-user.target
 SERVICE
 
-cat >/etc/nginx/nginx.conf <<'NGINX'
-user nginx;
-worker_processes auto;
-error_log /var/log/nginx/error.log notice;
-pid /run/nginx.pid;
+cat >/etc/nginx/conf.d/dhokha.conf <<'NGINX'
+server {
+    listen 80 default_server;
+    server_name _dhokha_origin;
 
-events {
-    worker_connections 1024;
-}
-
-http {
-    include /etc/nginx/mime.types;
-    default_type application/octet-stream;
-    sendfile on;
-
-    server {
-        listen 80 default_server;
-        server_name _;
-
-        location / {
-            proxy_pass http://127.0.0.1:8000;
-            proxy_http_version 1.1;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "upgrade";
-            proxy_read_timeout 300;
-        }
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 300;
     }
 }
 NGINX

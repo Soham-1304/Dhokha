@@ -285,3 +285,70 @@
   .form-grid { grid-template-columns: 1fr; }
   .result-header { gap: 18px; }
 }
+
+.pipeline-scorer-card {
+  margin-top: 18px;
+  border-top: 2px solid var(--safe);
+}
+
+.pipeline-header {
+  align-items: flex-start;
+}
+
+.pipeline-header p {
+  margin: 5px 0 0;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.pipeline-endpoint {
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.pipeline-content {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.9fr) minmax(280px, 1.1fr);
+  gap: 18px;
+}
+
+.pipeline-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pipeline-score-button {
+  grid-column: 1 / -1;
+  justify-content: center;
+}
+
+.pipeline-result {
+  min-height: 150px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.pipeline-verdict-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.pipeline-reasons {
+  display: grid;
+  gap: 5px;
+  margin: 12px 0;
+}
+
+@media (max-width: 850px) {
+  .pipeline-content,
+  .pipeline-form-grid {
+    grid-template-columns: 1fr;
+  }
+}

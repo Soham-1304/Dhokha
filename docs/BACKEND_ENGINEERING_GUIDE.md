@@ -29,9 +29,10 @@ The current `/score` implementation does **not** call the ONNX model. This disti
 | Surface | URL |
 |---|---|
 | Hosted frontend | `https://dhokha-vert.vercel.app` |
-| HTTPS backend | `https://bq8qc3ysd8.execute-api.ap-south-1.amazonaws.com` |
-| Swagger UI | `https://bq8qc3ysd8.execute-api.ap-south-1.amazonaws.com/docs` |
-| OpenAPI JSON | `https://bq8qc3ysd8.execute-api.ap-south-1.amazonaws.com/openapi.json` |
+| HTTPS backend | `https://api.dhokha.bharathperni.dev` |
+| Swagger UI | `https://api.dhokha.bharathperni.dev/docs` |
+| OpenAPI JSON | `https://api.dhokha.bharathperni.dev/openapi.json` |
+| WebSocket stream | `wss://api.dhokha.bharathperni.dev/stream` |
 | Local backend | `http://127.0.0.1:8000` |
 | Local frontend | `http://127.0.0.1:5173` |
 
@@ -50,22 +51,19 @@ The Vercel deployment uses `frontend/vercel.json` to rewrite `/api/*` to the AWS
 | Deterministic rules | Swarm detection | Guarantees predictable Types A-D demonstrations even when ML artifacts are unavailable. |
 | Gemma 3 4B on Bedrock | Hosted fallback | Keeps model fallback off the small EC2 host and removes local GPU requirements. |
 | EC2 + Nginx | Always-on backend | Avoids serverless cold starts during the live presentation. |
-| API Gateway | HTTPS proxy | Allows an HTTPS frontend to call the EC2 backend without mixed-content failures. |
+| Let's Encrypt | TLS certificate | Gives REST and WebSocket traffic a browser-trusted certificate with automatic renewal. |
 
 ## 4. Runtime Architecture
 
 ```text
 React/Vercel
     |
-    | HTTPS /api/*
+    | HTTPS /api/* and WSS /stream
     v
 Vercel rewrite
     |
     v
-AWS API Gateway (HTTPS)
-    |
-    v
-Nginx on EC2 :80
+Nginx on EC2 :443
     |
     v
 FastAPI :8000
@@ -337,7 +335,9 @@ Event types:
 
 Local URL: `ws://127.0.0.1:8000/stream`.
 
-The EC2/Nginx origin supports WebSocket upgrade. The existing HTTP API Gateway proxy is intended for HTTP endpoints; a production HTTPS dashboard should use a dedicated WebSocket API or another WebSocket-capable edge.
+Public URL: `wss://api.dhokha.bharathperni.dev/stream`.
+
+Nginx terminates TLS and forwards WebSocket upgrade headers to FastAPI. The public stream has been verified end to end by opening WSS, scoring a transaction over HTTPS, and receiving its `transaction_scored` event.
 
 ## 9. Demo Runbook
 
@@ -397,7 +397,7 @@ cd frontend && npm run build
 
 Current verified result:
 
-- backend: `15 passed`;
+- backend: `16 passed`;
 - frontend production build: passed;
 - all four seeded swarm types detected;
 - normal transaction allowed;
@@ -413,13 +413,20 @@ The AWS demo uses:
 
 - one `t3.micro` EC2 instance in `ap-south-1`;
 - an encrypted 8 GB gp3 volume;
-- Nginx on port 80;
+- Nginx on ports 80 and 443;
 - FastAPI bound to `127.0.0.1:8000`;
-- API Gateway for public HTTPS;
+- Name.com DNS for `api.dhokha.bharathperni.dev`;
+- a Let's Encrypt certificate with automatic renewal;
 - Systems Manager for backend updates;
 - SSM Parameter Store for the Bedrock key.
 
-Deployment scripts are under `deploy/aws/`. Use `destroy-ec2.sh` after the demo to remove API Gateway, EC2, S3 artifacts, the security group, SSM parameter, and deployment IAM resources.
+Deployment scripts are under `deploy/aws/`. After the Name.com `A` record points to the EC2 public IP, run:
+
+```bash
+./deploy/aws/configure-domain-tls.sh api.dhokha.bharathperni.dev
+```
+
+Use `destroy-ec2.sh` after the demo to remove API Gateway, EC2, S3 artifacts, the security group, SSM parameter, and deployment IAM resources. DNS records at Name.com must be removed separately.
 
 ## 14. Security and Privacy
 
@@ -434,13 +441,13 @@ Deployment scripts are under `deploy/aws/`. Use `destroy-ec2.sh` after the demo 
 
 ## 15. Current Limitations
 
-- Dashboard, graph explorer, alerts, and swarm controls still contain mock-data paths; only the Transaction Scorer is fully connected to `/health` and `/v1/evaluate`.
+- Transaction Scorer is connected to `/health`, `/v1/evaluate`, `/score`, and `/stream`. Graph Explorer is connected to demo reset/injection, alerts, graph neighborhoods, and live swarm events. The separate dashboard landing feed and case-file presentation still use curated demonstration data.
 - `/score` and `/v1/evaluate` use separate feature/model pipelines.
 - `geo_jump` is currently fixed to zero.
 - No authentication, rate limiting, audit identity, or bank authorization.
 - No production-grade message queue or distributed background worker.
 - Graph state is in one process and must be rebuilt from SQLite after restart.
-- The API Gateway HTTP proxy is not the production WebSocket solution.
+- The custom DNS `A` record currently points to the instance public IP; stopping and starting the instance can change that IP unless an Elastic IP is attached.
 - Public HTTPS latency can exceed 200 ms even when model inference is sub-millisecond.
 
 ## 16. Production Roadmap
@@ -451,7 +458,7 @@ Deployment scripts are under `deploy/aws/`. Use `destroy-ec2.sh` after the demo 
 4. Add authentication, bank tenancy, authorization, and rate limits.
 5. Add idempotency keys and audit records aligned with payment gateways.
 6. Add model versioning, monitoring, drift checks, and calibrated thresholds.
-7. Add a dedicated WebSocket/event service.
+7. Move WebSocket fan-out to a durable event service when horizontally scaling.
 8. Connect all dashboard surfaces to the live APIs.
 9. Add CI benchmarks, WebSocket end-to-end tests, and per-swarm model metrics.
 

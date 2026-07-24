@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { API_BASE_URL, evaluateTransaction, getHealth } from '../api/client';
+import {
+  API_BASE_URL,
+  connectEventStream,
+  evaluateTransaction,
+  getHealth,
+  scoreTransaction,
+} from '../api/client';
 import './Scorer.css';
 
 const PRESETS = [
@@ -136,7 +142,17 @@ export default function Scorer() {
   const [result, setResult] = useState(null);
   const [isScoring, setIsScoring] = useState(false);
   const [backendStatus, setBackendStatus] = useState('checking');
+  const [streamStatus, setStreamStatus] = useState('connecting');
   const [error, setError] = useState('');
+  const [pipelineForm, setPipelineForm] = useState({
+    sender_account_id: 'ACC-000',
+    receiver_account_id: 'ACC-001',
+    amount: '800',
+    device_fingerprint: 'normal-device-000',
+  });
+  const [pipelineResult, setPipelineResult] = useState(null);
+  const [pipelineError, setPipelineError] = useState('');
+  const [pipelineLoading, setPipelineLoading] = useState(false);
   const formRef = useRef(null);
 
   useEffect(() => {
@@ -151,6 +167,15 @@ export default function Scorer() {
     return () => {
       active = false;
     };
+  }, []);
+
+  useEffect(() => {
+    const socket = connectEventStream({
+      onOpen: () => setStreamStatus('online'),
+      onError: () => setStreamStatus('offline'),
+      onClose: () => setStreamStatus('offline'),
+    });
+    return () => socket.close();
   }, []);
 
   const handleChange = (field, value) => {
@@ -191,6 +216,28 @@ export default function Scorer() {
     }
   };
 
+  const handlePipelineScore = async () => {
+    setPipelineLoading(true);
+    setPipelineResult(null);
+    setPipelineError('');
+    try {
+      const response = await scoreTransaction({
+        transaction_id: crypto.randomUUID(),
+        sender_account_id: pipelineForm.sender_account_id,
+        receiver_account_id: pipelineForm.receiver_account_id,
+        amount: Number(pipelineForm.amount),
+        timestamp: new Date().toISOString(),
+        device_fingerprint: pipelineForm.device_fingerprint,
+        channel: 'UPI',
+      });
+      setPipelineResult(response);
+    } catch (requestError) {
+      setPipelineError(requestError.message);
+    } finally {
+      setPipelineLoading(false);
+    }
+  };
+
   const riskClass = result ? (result.risk_score >= 80 ? 'critical' : result.risk_score >= 60 ? 'high' : result.risk_score >= 35 ? 'medium' : 'low') : '';
 
   return (
@@ -207,6 +254,10 @@ export default function Scorer() {
           {backendStatus === 'checking' && 'Connecting to model'}
           {backendStatus === 'degraded' && 'Model degraded'}
           {backendStatus === 'offline' && 'Model offline'}
+          {' · '}
+          {streamStatus === 'online' && 'Stream live'}
+          {streamStatus === 'connecting' && 'Stream connecting'}
+          {streamStatus === 'offline' && 'Stream offline'}
         </span>
       </div>
 
@@ -348,6 +399,101 @@ export default function Scorer() {
             )}
           </div>
         </div>
+
+        <section className="card pipeline-scorer-card">
+          <div className="card-header pipeline-header">
+            <div>
+              <span className="card-title">🕸 Full UPI Fraud Pipeline</span>
+              <p>Behavioral features, deterministic swarm rules, persistence, graph analysis, and live events.</p>
+            </div>
+            <span className="pipeline-endpoint">{API_BASE_URL}/score</span>
+          </div>
+
+          <div className="pipeline-content">
+            <div className="pipeline-form-grid">
+              <div className="form-group">
+                <label>Sender account</label>
+                <input
+                  aria-label="Pipeline sender account"
+                  value={pipelineForm.sender_account_id}
+                  onChange={event => setPipelineForm(previous => ({
+                    ...previous,
+                    sender_account_id: event.target.value,
+                  }))}
+                />
+              </div>
+              <div className="form-group">
+                <label>Receiver account</label>
+                <input
+                  aria-label="Pipeline receiver account"
+                  value={pipelineForm.receiver_account_id}
+                  onChange={event => setPipelineForm(previous => ({
+                    ...previous,
+                    receiver_account_id: event.target.value,
+                  }))}
+                />
+              </div>
+              <div className="form-group">
+                <label>Amount (₹)</label>
+                <input
+                  aria-label="Pipeline amount"
+                  type="number"
+                  value={pipelineForm.amount}
+                  onChange={event => setPipelineForm(previous => ({
+                    ...previous,
+                    amount: event.target.value,
+                  }))}
+                />
+              </div>
+              <div className="form-group">
+                <label>Device fingerprint</label>
+                <input
+                  aria-label="Pipeline device fingerprint"
+                  value={pipelineForm.device_fingerprint}
+                  onChange={event => setPipelineForm(previous => ({
+                    ...previous,
+                    device_fingerprint: event.target.value,
+                  }))}
+                />
+              </div>
+              <button
+                className="btn btn-primary pipeline-score-button"
+                disabled={pipelineLoading}
+                onClick={handlePipelineScore}
+              >
+                {pipelineLoading ? 'Running full pipeline…' : 'Score with rules + graph'}
+              </button>
+            </div>
+
+            <div className="pipeline-result" aria-live="polite">
+              {pipelineError && <p className="live-error-copy">{pipelineError}</p>}
+              {!pipelineResult && !pipelineError && (
+                <p>Use seeded accounts ACC-000 through ACC-039, or inject a swarm in Graph Explorer.</p>
+              )}
+              {pipelineResult && (
+                <>
+                  <div className="pipeline-verdict-row">
+                    <span className={`risk-badge ${pipelineResult.decision === 'block' ? 'critical' : pipelineResult.decision === 'review' ? 'medium' : 'low'}`}>
+                      {pipelineResult.decision.toUpperCase()}
+                    </span>
+                    <strong>{Math.round(pipelineResult.final_confidence * 100)}% confidence</strong>
+                    <span>{pipelineResult.latency_ms}ms</span>
+                  </div>
+                  <p className="mono">{pipelineResult.transaction_id}</p>
+                  <div className="pipeline-reasons">
+                    {pipelineResult.top_reasons.length > 0
+                      ? pipelineResult.top_reasons.map(reason => <span key={reason}>— {reason}</span>)
+                      : <span>— No suspicious swarm rules triggered</span>}
+                  </div>
+                  <p>
+                    Swarms: {pipelineResult.suspected_swarm_types.join(', ') || 'none'} ·
+                    Rule score: {Math.round(pipelineResult.rule_score * 100)}%
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
       </div>
     </div>
   );

@@ -8,7 +8,7 @@ source "$ROOT_DIR/.aws-deployment.env"
 CLIENT_IP="${1:?Usage: repair-ec2-proxy.sh <public-ip>}"
 TEMP_DIR="$(mktemp -d -t dhokha-repair.XXXXXX)"
 KEY_PATH="$TEMP_DIR/ec2-connect"
-NGINX_CONFIG="$TEMP_DIR/nginx.conf"
+NGINX_CONFIG="$TEMP_DIR/dhokha.conf"
 SSH_RULE_ADDED=false
 
 cleanup() {
@@ -51,35 +51,20 @@ aws ec2-instance-connect send-ssh-public-key \
   --ssh-public-key "file://$KEY_PATH.pub" >/dev/null
 
 cat >"$NGINX_CONFIG" <<'NGINX'
-user nginx;
-worker_processes auto;
-error_log /var/log/nginx/error.log notice;
-pid /run/nginx.pid;
+server {
+    listen 80 default_server;
+    server_name _dhokha_origin;
 
-events {
-    worker_connections 1024;
-}
-
-http {
-    include /etc/nginx/mime.types;
-    default_type application/octet-stream;
-    sendfile on;
-
-    server {
-        listen 80 default_server;
-        server_name _;
-
-        location / {
-            proxy_pass http://127.0.0.1:8000;
-            proxy_http_version 1.1;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "upgrade";
-            proxy_read_timeout 300;
-        }
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 300;
     }
 }
 NGINX
@@ -95,7 +80,7 @@ SSH_OPTIONS=(
 ssh "${SSH_OPTIONS[@]}" "ec2-user@${PUBLIC_URL#http://}" \
   'sudo systemctl is-active dhokha nginx && curl -fsS http://127.0.0.1:8000/health'
 base64 <"$NGINX_CONFIG" | ssh "${SSH_OPTIONS[@]}" "ec2-user@${PUBLIC_URL#http://}" \
-  'base64 --decode | sudo tee /etc/nginx/nginx.conf >/dev/null && sudo nginx -t && sudo systemctl restart nginx && curl -fsS http://127.0.0.1/health'
+  'base64 --decode | sudo tee /etc/nginx/conf.d/dhokha.conf >/dev/null && sudo nginx -t && sudo systemctl restart nginx && curl -fsS http://127.0.0.1/health'
 
 echo
 echo "Nginx proxy repaired; temporary SSH access was removed."
