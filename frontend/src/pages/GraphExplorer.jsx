@@ -2,8 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import * as d3 from 'd3';
 import { 
-  ArrowLeft,
-  Clock
+  ArrowLeft
 } from 'lucide-react';
 import './GraphExplorer.css';
 

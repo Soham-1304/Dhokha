@@ -48,3 +48,4 @@ pnpm-debug.log*
 
 # Deployment
 .vercel/
+.aws-deployment.env

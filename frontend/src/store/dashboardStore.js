@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { baseMetrics } from '../api/mock/metrics';
 
-const useDashboardStore = create((set, _get) => ({
+const useDashboardStore = create((set) => ({
   // --- Demo phase ---
   demoPhase: 'idle', // 'idle' | 'running' | 'complete'
   activeSwarm: null,

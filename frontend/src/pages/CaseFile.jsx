@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
-  ArrowLeft,
-  Clock
+  ArrowLeft
 } from 'lucide-react';
 import { transactions, caseTimeline } from '../data/mockData';
 import './CaseFile.css';
