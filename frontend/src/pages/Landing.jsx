@@ -1,50 +1,23 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Zap, Network, ShieldCheck, Users, ArrowDownToDot, Repeat, MonitorSmartphone } from 'lucide-react';
-import CustomCursor from '../components/landing/CustomCursor';
 import Reveal from '../components/landing/Reveal';
 import Board from '../components/landing/Board';
+import ThemeToggle from '../components/ThemeToggle';
 
 export default function Landing() {
-  const [theme, setTheme] = useState(() => {
-    const saved = localStorage.getItem('theme') || 'dark';
-    document.documentElement.setAttribute('data-theme', saved);
-    return saved;
-  });
-
-  const toggleTheme = () => {
-    const nextTheme = theme === 'dark' ? 'light' : 'dark';
-    setTheme(nextTheme);
-    document.documentElement.setAttribute('data-theme', nextTheme);
-    localStorage.setItem('theme', nextTheme);
-  };
-
   return (
     <div className="landing-page">
-      <CustomCursor />
-
       <nav>
         <Link to="/" className="logo" style={{ textDecoration: 'none' }}>DHOKHA<span>.</span></Link>
         <div className="nav-links">
           <Link to="/dashboard">Dashboard</Link>
-          <button 
-            onClick={toggleTheme} 
-            style={{ 
-              background: 'transparent', 
-              border: 'none', 
-              color: 'var(--text-dim)', 
-              fontSize: '14px', 
-              fontWeight: 500, 
-              cursor: 'pointer',
-              padding: 0
-            }}
-          >
-            {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-          </button>
           <Link to="#">Sign Up</Link>
           <Link to="#">Login</Link>
         </div>
-        <div className="case-toggle"><span className="dot"></span> CASE: OPEN</div>
+        <div className="nav-utilities">
+          <div className="case-toggle"><span className="dot"></span> CASE: OPEN</div>
+          <ThemeToggle />
+        </div>
       </nav>
 
       <section className="hero">

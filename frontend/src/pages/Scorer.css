@@ -2,10 +2,16 @@
 
 .scorer-layout {
   display: grid;
-  grid-template-columns: 420px 1fr;
-  gap: 24px;
+  grid-template-columns: minmax(330px, 0.8fr) minmax(0, 1.5fr);
+  gap: 18px;
   align-items: start;
 }
+
+.scorer-form-panel .card,
+.scorer-result-panel .card { border-radius: 12px; }
+
+.scorer-form-panel .card { border-top: 2px solid var(--brass); }
+.scorer-result-panel .result-card { border-top: 2px solid var(--string); }
 
 @media (max-width: 1000px) {
   .scorer-layout {
@@ -22,8 +28,8 @@
 }
 
 .preset-btn {
-  padding: 10px 14px;
-  border-radius: var(--radius);
+  padding: 11px 12px;
+  border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--bg-surface);
   color: var(--text-secondary);
@@ -212,7 +218,7 @@
   display: flex;
   align-items: center;
   gap: 32px;
-  padding: 12px 0;
+  padding: 4px 0 18px;
 }
 
 .result-meta {
@@ -273,4 +279,9 @@
   letter-spacing: 1.5px;
   color: var(--text-dim);
   margin-top: 4px;
+}
+
+@media (max-width: 700px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .result-header { gap: 18px; }
 }

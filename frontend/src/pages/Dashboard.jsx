@@ -1,9 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as d3 from 'd3';
-import { 
-  Clock
-} from 'lucide-react';
 import { transactions, stats } from '../data/mockData';
 import './Dashboard.css';
 
@@ -108,7 +105,6 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const [visibleTxns, setVisibleTxns] = useState([]);
   const [selectedTxn, setSelectedTxn] = useState(null);
-  const [currentTime, setCurrentTime] = useState(new Date());
 
   // Live simulation update
   useEffect(() => {
@@ -135,27 +131,8 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  // Clock
-  useEffect(() => {
-    const t = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
-
   return (
     <div className="dashboard-console dark-operations-board animate-in">
-      
-      {/* Top Header Status Bar */}
-      <header className="board-top-bar">
-        <div className="board-brand">
-          <span className="platform-logo">DHOKHA</span>
-          <span className="live-badge-stamp">MONITOR ACTIVE</span>
-        </div>
-        <div className="board-clock mono">
-          <Clock size={12} style={{ marginRight: 6, color: 'var(--text-dim)' }} />
-          <span>{currentTime.toLocaleTimeString('en-IN', { hour12: false })}</span>
-        </div>
-      </header>
-
       {/* Workspace Columns */}
       <div className="board-main-container">
         

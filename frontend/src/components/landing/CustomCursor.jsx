@@ -9,12 +9,21 @@ export default function CustomCursor() {
 
     document.body.classList.add('has-custom-cursor');
 
-    let mx = 0, my = 0, cx = 0, cy = 0;
+    let mx = window.innerWidth / 2;
+    let my = window.innerHeight / 2;
+    let cx = mx;
+    let cy = my;
     
     const handleMouseMove = (e) => {
       mx = e.clientX;
       my = e.clientY;
+      const isInteractive = e.target.closest('a, button, input, select, textarea, [data-hover], [role="button"]');
+      cursor.classList.toggle('hover', Boolean(isInteractive));
+      cursor.classList.remove('is-hidden');
     };
+
+    const handleMouseLeave = () => cursor.classList.add('is-hidden');
+    const handleMouseEnter = () => cursor.classList.remove('is-hidden');
     
     let animationFrameId;
     
@@ -31,28 +40,14 @@ export default function CustomCursor() {
     window.addEventListener('mousemove', handleMouseMove);
     loop();
 
-    // Handle hover states based on elements with data-hover attribute or specific tags
-    const handleMouseOver = (e) => {
-      const target = e.target.closest('[data-hover], .card, a, button');
-      if (target) {
-        cursor.classList.add('hover');
-      }
-    };
-    const handleMouseOut = (e) => {
-      const target = e.target.closest('[data-hover], .card, a, button');
-      if (target) {
-        cursor.classList.remove('hover');
-      }
-    };
-
-    document.addEventListener('mouseover', handleMouseOver);
-    document.addEventListener('mouseout', handleMouseOut);
+    document.addEventListener('mouseleave', handleMouseLeave);
+    document.addEventListener('mouseenter', handleMouseEnter);
 
     return () => {
       document.body.classList.remove('has-custom-cursor');
       window.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseover', handleMouseOver);
-      document.removeEventListener('mouseout', handleMouseOut);
+      document.removeEventListener('mouseleave', handleMouseLeave);
+      document.removeEventListener('mouseenter', handleMouseEnter);
       cancelAnimationFrame(animationFrameId);
     };
   }, []);

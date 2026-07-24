@@ -195,16 +195,19 @@ export default function Scorer() {
 
   return (
     <div className="page animate-in">
-      <div className="topbar">
-        <div className="topbar-left">
-          <h1>Transaction Scorer</h1>
-          <span className={`tag gold api-state api-state-${backendStatus}`}>
-            {backendStatus === 'online' && 'ONNX MODEL · LIVE'}
-            {backendStatus === 'checking' && 'CONNECTING TO MODEL'}
-            {backendStatus === 'degraded' && 'MODEL DEGRADED'}
-            {backendStatus === 'offline' && 'MODEL OFFLINE'}
-          </span>
+      <div className="scorer-intro">
+        <div>
+          <p className="workspace-kicker">Live risk assessment</p>
+          <h1>Transaction scorer</h1>
+          <p>Run a payment through the fraud engine and inspect the evidence behind its score.</p>
         </div>
+        <span className={`scorer-status api-state-${backendStatus}`}>
+          <span />
+          {backendStatus === 'online' && 'ONNX model live'}
+          {backendStatus === 'checking' && 'Connecting to model'}
+          {backendStatus === 'degraded' && 'Model degraded'}
+          {backendStatus === 'offline' && 'Model offline'}
+        </span>
       </div>
 
       <div className="page-content">

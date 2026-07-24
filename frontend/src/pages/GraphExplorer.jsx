@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import * as d3 from 'd3';
-import { 
-  ArrowLeft
-} from 'lucide-react';
 import './GraphExplorer.css';
 
 // Cohesive case mock data matching the operations console
@@ -111,7 +108,6 @@ const CASES = [
 ];
 
 export default function GraphExplorer() {
-  const navigate = useNavigate();
   const location = useLocation();
   const svgRef = useRef(null);
   const containerRef = useRef(null);
@@ -272,23 +268,6 @@ export default function GraphExplorer() {
 
   return (
     <div className="explorer-layout dark-operations-board animate-in">
-      
-      {/* Wooden-style subheader bar */}
-      <div className="explorer-sub-header">
-        <button className="back-btn" onClick={() => navigate('/dashboard')}>
-          <ArrowLeft size={13} style={{ marginRight: 6 }} /> Back to Terminal
-        </button>
-        <div className="title-area">
-          <span className="queue-tag">CASE DOSSIER</span>
-          <h1>{activeCase.title}</h1>
-        </div>
-        <div className="header-meta">
-          <span>AI Threat: <strong className="text-red">{activeCase.confidence}%</strong></span>
-          <span className="pipe" />
-          <span>Exposure: <strong>{activeCase.exposure}</strong></span>
-        </div>
-      </div>
-
       {toast && <div className="workspace-toast">{toast}</div>}
 
       {/* Pinned dossiers layout */}

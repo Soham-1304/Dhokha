@@ -1,19 +1,9 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { 
-  ArrowLeft
-} from 'lucide-react';
 import { transactions, caseTimeline } from '../data/mockData';
 import './CaseFile.css';
 
 const formatAmount = (n) => '₹' + n.toLocaleString('en-IN');
-
-function getRiskClass(score) {
-  if (score >= 80) return 'critical';
-  if (score >= 60) return 'high';
-  if (score >= 35) return 'medium';
-  return 'low';
-}
 
 export default function CaseFile() {
   const location = useLocation();
@@ -41,27 +31,9 @@ export default function CaseFile() {
     );
   }
 
-  const riskClass = getRiskClass(txn.risk_score);
-
   return (
     <div className="case-inspector-page dark-operations-board animate-in">
       
-      {/* Top toolbar */}
-      <header className="inspector-toolbar">
-        <button className="back-btn" onClick={() => navigate('/dashboard')}>
-          <ArrowLeft size={13} style={{ marginRight: 6 }} /> Back to Terminal
-        </button>
-        <div className="toolbar-title-box">
-          <span className="case-ref-tag">TRANSACTION LEDGER</span>
-          <h1>pay_{txn.id.replaceAll('-', '').toLowerCase()}</h1>
-        </div>
-        <div className="toolbar-badge">
-          <span className={`risk-badge-stripe ${riskClass}`}>
-            RISK INDEX: {txn.risk_score}
-          </span>
-        </div>
-      </header>
-
       {toast && <div className="inspector-toast">{toast}</div>}
 
       <div className="inspector-layout-grid">
