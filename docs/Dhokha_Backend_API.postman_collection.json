@@ -1,0 +1,125 @@
+{
+  "info": {
+    "_postman_id": "1ce77750-3df7-4cd7-8175-f96768ce769b",
+    "name": "Dhokha Backend Demo",
+    "description": "End-to-end demo flow for the synthetic Dhokha fraud detection backend.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://bq8qc3ysd8.execute-api.ap-south-1.amazonaws.com"
+    },
+    {
+      "key": "account_id",
+      "value": "ACC-000"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/health"
+      }
+    },
+    {
+      "name": "02 - Reset Demo",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "url": "{{base_url}}/demo/reset"
+      }
+    },
+    {
+      "name": "03 - Normal UPI Score",
+      "event": [{
+        "listen": "prerequest",
+        "script": {
+          "type": "text/javascript",
+          "exec": [
+            "pm.variables.set('txn_id', 'normal-' + Date.now());",
+            "pm.variables.set('now', new Date().toISOString());"
+          ]
+        }
+      }],
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"transaction_id\":\"{{txn_id}}\",\"sender_account_id\":\"ACC-000\",\"receiver_account_id\":\"ACC-001\",\"amount\":800,\"timestamp\":\"{{now}}\",\"device_fingerprint\":\"normal-device-000\",\"channel\":\"UPI\"}"
+        },
+        "url": "{{base_url}}/score"
+      }
+    },
+    {
+      "name": "04 - ONNX High-Risk Evaluation",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"amount\":49900,\"oldbalanceOrg\":49900,\"newbalanceOrig\":0,\"oldbalanceDest\":0,\"newbalanceDest\":0,\"dest_in_degree\":45,\"dest_out_degree\":12,\"dest_pagerank\":0.0024,\"is_merchant\":0}"
+        },
+        "url": "{{base_url}}/v1/evaluate"
+      }
+    },
+    {
+      "name": "05 - Inject Type D Shared-Device Swarm",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"swarm_type\":\"D\",\"size\":5}"
+        },
+        "url": "{{base_url}}/demo/inject-swarm"
+      }
+    },
+    {
+      "name": "06 - Type D Alerts",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/alerts?swarm_type=D&status=confirmed&limit=20"
+      }
+    },
+    {
+      "name": "07 - Account Subgraph",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/graph/subgraph/{{account_id}}?depth=2"
+      }
+    },
+    {
+      "name": "08 - Inject Type A",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\"swarm_type\":\"A\",\"size\":5}"},
+        "url": "{{base_url}}/demo/inject-swarm"
+      }
+    },
+    {
+      "name": "09 - Inject Type B",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\"swarm_type\":\"B\",\"size\":5}"},
+        "url": "{{base_url}}/demo/inject-swarm"
+      }
+    },
+    {
+      "name": "10 - Inject Type C",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {"mode": "raw", "raw": "{\"swarm_type\":\"C\",\"size\":5}"},
+        "url": "{{base_url}}/demo/inject-swarm"
+      }
+    }
+  ]
+}
