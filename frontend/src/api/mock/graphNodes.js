@@ -20,7 +20,7 @@ export const graphNodes = [
   { id: 'ACC-C02', label: 'Suresh Iyer', bank: 'C', type: 'account', city: 'Kolkata', risk: 0, balance: 9200 },
   { id: 'ACC-C03', label: 'Divya Raj', bank: 'C', type: 'account', city: 'Jaipur', risk: 0, balance: 47600 },
 
-  // "Clean" periphery nodes — to make the graph look realistic
+  // "Clean" periphery nodes
   { id: 'ACC-A04', label: 'Clean Account 1', bank: 'A', type: 'account', city: 'Surat', risk: 0, balance: 6400 },
   { id: 'ACC-B04', label: 'Clean Account 2', bank: 'B', type: 'account', city: 'Ahmedabad', risk: 0, balance: 18000 },
   { id: 'ACC-C04', label: 'Clean Account 3', bank: 'C', type: 'account', city: 'Lucknow', risk: 0, balance: 5500 },

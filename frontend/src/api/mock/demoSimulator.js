@@ -1,17 +1,6 @@
 import { swarms } from './swarms';
 import { baseMetrics, demoMetricDeltas } from './metrics';
 
-/**
- * Client-side scripted demo replay engine.
- * Calls into the zustand dashboardStore to drive all visual state.
- *
- * Timeline for Type D (Device Cluster) — the lead demo:
- *   T+0ms     — edge pulses fire one-by-one
- *   T+800ms   — first nodes go amber (Stage 1 flag), latency badge shows
- *   T+2500ms  — more nodes go amber
- *   T+3500ms  — all swarm nodes go red, toast fires, metrics tick up
- */
-
 const PULSE_INTERVAL = 180; // ms between each edge pulse
 
 export function runDemo(swarmId, store) {

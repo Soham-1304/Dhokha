@@ -1,12 +1,50 @@
+# Dependencies and build output
 node_modules/
 dist/
+dist-ssr/
+*.local
+
+# Environment and secrets
 .env
-.env.local
-*.pyc
+.env.*
+!.env.example
+
+# Python caches, virtual environments, and build artifacts
 __pycache__/
+*.py[cod]
+*.so
 .venv/
+venv/
+env/
+ENV/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
 *.pkl
 *.pt
-.DS_Store
-.vercel
+
+# Generated ML/data files
+*.db
+*.sqlite
+*.sqlite3
+*.csv
+
+# Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Editor and OS files
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Deployment
+.vercel/

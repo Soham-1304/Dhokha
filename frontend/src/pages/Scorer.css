@@ -1,0 +1,236 @@
+/* Scorer-specific styles */
+
+.scorer-layout {
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1000px) {
+  .scorer-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Presets */
+.preset-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.preset-btn {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  transition: all var(--transition);
+  cursor: pointer;
+}
+
+.preset-btn:hover {
+  border-color: var(--border-hover);
+  background: var(--bg-card-hover);
+}
+
+.preset-btn.active {
+  border-color: var(--string);
+  background: var(--string-bg);
+  color: var(--text);
+}
+
+/* Form grid */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.score-btn {
+  width: 100%;
+  padding: 14px 20px;
+  font-size: 15px;
+  justify-content: center;
+}
+
+.score-btn.scoring {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Empty state */
+.empty-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 400px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.6;
+}
+
+.empty-text {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.empty-sub {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+/* Scoring animation */
+.scoring-anim {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  position: relative;
+  overflow: hidden;
+}
+
+.scanning-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.scan-line {
+  width: 200px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--string), transparent);
+  animation: scanMove 1.2s ease-in-out infinite;
+}
+
+.scan-line.d2 { animation-delay: 0.2s; width: 160px; }
+.scan-line.d3 { animation-delay: 0.4s; width: 120px; }
+
+@keyframes scanMove {
+  0%, 100% { opacity: 0.3; transform: scaleX(0.5); }
+  50% { opacity: 1; transform: scaleX(1); }
+}
+
+.scoring-text {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  animation: blink 1s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Result card */
+.result-card {
+  animation: scaleIn 0.4s var(--ease) forwards;
+}
+
+.result-card.result-critical {
+  border-color: rgba(229, 72, 77, 0.3);
+}
+
+.result-card.result-high {
+  border-color: rgba(229, 132, 77, 0.3);
+}
+
+.result-card.result-low {
+  border-color: rgba(63, 182, 127, 0.3);
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.result-header {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 12px 0;
+}
+
+.result-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.result-confidence {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.result-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 20px 0;
+}
+
+.result-reasons {
+  margin-top: 8px;
+}
+
+/* Score gauge */
+.score-gauge {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.score-gauge-inner {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.score-gauge-number {
+  font-family: var(--font-heading);
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.score-gauge-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 1.5px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}

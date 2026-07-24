@@ -45,30 +45,30 @@ export default function Board() {
         <path className="string-path d3" d="M 855 55 Q 620 60 530 260" />
       </svg>
       
-      <div className="card c1" data-tilt ref={el => cardsRef.current[0] = el}>
+      <div className="landing-card c1" data-tilt ref={el => cardsRef.current[0] = el}>
         <div className="pin"></div>
-        <div className="bank">Bank A · Mumbai</div>
+        <div className="bank">Bank A</div>
         <div className="amt">₹48,200</div>
         <div className="id">TXN-9F21-A</div>
       </div>
       
-      <div className="card c2" data-tilt ref={el => cardsRef.current[1] = el}>
+      <div className="landing-card c2 flagged" data-tilt ref={el => cardsRef.current[1] = el}>
         <div className="pin"></div>
-        <div className="bank">Bank B · Pune</div>
-        <div className="amt">₹1,12,000</div>
+        <div className="bank">Bank B</div>
+        <div className="amt">₹63,500</div>
         <div className="id">TXN-7C08-B</div>
       </div>
       
-      <div className="card c3" data-tilt ref={el => cardsRef.current[2] = el}>
+      <div className="landing-card c3" data-tilt ref={el => cardsRef.current[2] = el}>
         <div className="pin"></div>
-        <div className="bank">Bank C · Delhi</div>
-        <div className="amt">₹63,500</div>
-        <div className="id">TXN-4E77-C</div>
+        <div className="bank">Bank C</div>
+        <div className="amt">₹12,400</div>
+        <div className="id">TXN-4B22-A</div>
       </div>
       
-      <div className="card flagged c-center" data-tilt ref={el => cardsRef.current[3] = el}>
+      <div className="landing-card c-center flagged" data-tilt ref={el => cardsRef.current[3] = el}>
         <div className="pin"></div>
-        <div className="bank">Consolidated Account</div>
+        <div className="bank">Collector Account</div>
         <div className="amt">₹2,23,700</div>
         <div className="id">MULE-RING-0092</div>
       </div>

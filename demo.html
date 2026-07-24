@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dhokha — The Ledger They Can't See</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F3F4EE;
+    --panel:#FFFFFF;
+    --panel-2:#FAFAF5;
+    --ink:#14171B;
+    --ink-soft:#68695D;
+    --ink-faint:#9A9B8C;
+    --line:#DFDFD2;
+    --line-strong:#C9CAB9;
+    --trace:#1F4B44;
+    --trace-soft:#dfe7e2;
+    --flag:#B23A2E;
+    --flag-soft:#f6e3df;
+    --brass:#8F7226;
+    --radius:8px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    overflow-x:hidden;
+  }
+  ::selection{background:var(--trace);color:#fff;}
+  body{cursor:none;}
+  @media (pointer:coarse){ body{cursor:auto;} }
+
+  /* faint blueprint grid */
+  .grid-bg{
+    position:fixed; inset:0; z-index:-1; pointer-events:none;
+    background-image:
+      linear-gradient(to right, rgba(20,23,27,0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(20,23,27,0.035) 1px, transparent 1px);
+    background-size:56px 56px;
+    mask-image:radial-gradient(ellipse 70% 60% at 50% 0%, black 40%, transparent 90%);
+  }
+
+  /* cursor: quiet dot + lagging ring */
+  .cur-dot,.cur-ring{ position:fixed; top:0; left:0; pointer-events:none; z-index:9999; border-radius:50%; transform:translate(-50%,-50%); }
+  .cur-dot{ width:5px; height:5px; background:var(--ink); }
+  .cur-ring{ width:26px; height:26px; border:1px solid var(--line-strong); transition:width .2s,height .2s,border-color .2s,background .2s; }
+  .cur-ring.hover{ width:44px; height:44px; border-color:var(--trace); background:rgba(31,75,68,0.06); }
+  @media (pointer:coarse){ .cur-dot,.cur-ring{display:none;} }
+
+  nav{
+    position:fixed; top:0; width:100%; z-index:100;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:22px 48px;
+    background:rgba(243,244,238,0.82); backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);
+  }
+  .logo{ font-family:'Instrument Serif',serif; font-size:23px; letter-spacing:0.5px; }
+  .logo span{ color:var(--flag); font-style:italic; }
+  .nav-links{ display:flex; gap:32px; }
+  .nav-links a{ color:var(--ink-soft); text-decoration:none; font-size:13.5px; font-weight:500; transition:color .2s; }
+  .nav-links a:hover{ color:var(--ink); }
+  .status-pill{
+    display:flex; align-items:center; gap:8px;
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:0.8px;
+    color:var(--trace); border:1px solid var(--trace); padding:5px 11px 5px 9px;
+    border-radius:20px; text-transform:uppercase; background:var(--trace-soft);
+  }
+  .status-pill .dot{ width:6px; height:6px; border-radius:50%; background:var(--trace); }
+  .status-pill .dot.pulse{ animation:pulse 2s infinite; }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
+
+  .hero{
+    position:relative; min-height:100vh; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center;
+    padding:150px 24px 70px;
+  }
+  .eyebrow-stamp{
+    font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:2.5px;
+    color:var(--brass); text-transform:uppercase; margin-bottom:28px;
+    padding:5px 0; border-top:1px solid var(--brass); border-bottom:1px solid var(--brass);
+  }
+  h1.headline{
+    font-family:'Instrument Serif',serif; font-weight:400;
+    font-size:clamp(42px,6.4vw,84px); line-height:1.04; letter-spacing:-0.01em;
+    max-width:900px; margin-bottom:22px;
+  }
+  h1.headline em{ font-style:italic; color:var(--flag); }
+  .sub{ font-size:17.5px; color:var(--ink-soft); max-width:540px; line-height:1.65; margin-bottom:42px; }
+  .cta-row{ display:flex; gap:14px; flex-wrap:wrap; justify-content:center; margin-bottom:96px; }
+  .btn{ font-family:'Inter',sans-serif; font-weight:600; font-size:14px; padding:14px 26px; border-radius:6px; cursor:none; border:1px solid transparent; transition:transform .18s, box-shadow .18s, background .18s; }
+  .btn-primary{ background:var(--ink); color:#fff; }
+  .btn-primary:hover{ transform:translateY(-2px); box-shadow:0 10px 22px rgba(20,23,27,0.18); }
+  .btn-ghost{ background:transparent; color:var(--ink); border-color:var(--line-strong); font-family:'JetBrains Mono',monospace; font-size:12.5px; letter-spacing:0.5px; text-transform:uppercase; }
+  .btn-ghost:hover{ border-color:var(--ink); background:var(--panel-2); }
+
+  /* schematic trace diagram */
+  .trace-wrap{ position:relative; width:100%; max-width:900px; }
+  svg.trace{ width:100%; height:auto; overflow:visible; }
+  .trace-line{ fill:none; stroke:var(--trace); stroke-width:1.4; stroke-linecap:round; stroke-dasharray:500; stroke-dashoffset:500; animation:draw 1.4s ease forwards; opacity:0.75; }
+  .trace-line.d2{ animation-delay:.25s; }
+  .trace-line.d3{ animation-delay:.5s; }
+  @keyframes draw{ to{ stroke-dashoffset:0; } }
+  .node{ fill:var(--panel); stroke:var(--line-strong); stroke-width:1.2; }
+  .node-center{ fill:var(--flag-soft); stroke:var(--flag); stroke-width:1.4; }
+  .node-dot{ fill:var(--ink-soft); }
+  .node-dot.center{ fill:var(--flag); }
+  .trace-label{ font-family:'JetBrains Mono',monospace; font-size:10.5px; fill:var(--ink-soft); }
+  .trace-label.amt{ font-family:'Inter',sans-serif; font-size:13px; font-weight:600; fill:var(--ink); }
+  .trace-label.center{ fill:var(--flag); font-weight:600; }
+
+  section{ padding:120px 24px; position:relative; }
+  .container{ max-width:1080px; margin:0 auto; }
+  .reveal{ opacity:0; transform:translateY(24px); transition:opacity .6s ease, transform .6s ease; }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+
+  .split{ display:grid; grid-template-columns:1fr 1fr; gap:70px; align-items:center; }
+  @media (max-width:860px){ .split{ grid-template-columns:1fr; } }
+  .eyebrow{ font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:2.5px; color:var(--brass); text-transform:uppercase; margin-bottom:16px; }
+  h2{ font-family:'Instrument Serif',serif; font-weight:400; font-size:clamp(28px,3.2vw,42px); line-height:1.15; margin-bottom:18px; }
+  p.lead{ color:var(--ink-soft); font-size:15.5px; line-height:1.75; margin-bottom:18px; max-width:480px; }
+
+  .compare{ display:flex; flex-direction:column; gap:16px; }
+  .compare-row{ background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); padding:22px 24px; display:flex; align-items:center; gap:18px; }
+  .compare-row .label{ font-family:'JetBrains Mono',monospace; font-size:10.5px; letter-spacing:1px; color:var(--ink-faint); width:96px; flex-shrink:0; text-transform:uppercase; }
+  .nodes-row{ display:flex; gap:9px; align-items:center; flex:1; position:relative; height:24px; }
+  .nodes-row .n{ width:9px; height:9px; border-radius:50%; background:var(--line-strong); position:relative; z-index:1; }
+  .nodes-row.linked .n{ background:var(--trace); }
+  .nodes-row.linked::before{ content:''; position:absolute; left:4px; right:4px; top:50%; height:1px; background:var(--trace); opacity:.35; }
+  .compare-row.after{ border-color:var(--trace); background:var(--trace-soft); }
+  .compare-row.after .label{ color:var(--trace); font-weight:600; }
+
+  /* ledger cards */
+  .ledger{ display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:var(--radius); overflow:hidden; }
+  @media (max-width:860px){ .ledger{ grid-template-columns:1fr; } }
+  .ledger-item{ background:var(--panel); padding:34px 28px; transition:background .2s; }
+  .ledger-item:hover{ background:var(--panel-2); }
+  .ledger-item .tag{ display:inline-block; font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:1.2px; color:var(--trace); background:var(--trace-soft); padding:3px 8px; border-radius:3px; margin-bottom:16px; }
+  .ledger-item h3{ font-family:'Instrument Serif',serif; font-weight:400; font-size:22px; margin-bottom:10px; }
+  .ledger-item p{ color:var(--ink-soft); font-size:14px; line-height:1.65; }
+
+  .stats-strip{ display:flex; justify-content:space-between; flex-wrap:wrap; gap:32px; border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:44px 0; }
+  .stat{ font-family:'JetBrains Mono',monospace; }
+  .stat .num{ font-size:32px; font-weight:600; color:var(--ink); }
+  .stat .lab{ font-size:10.5px; color:var(--ink-faint); text-transform:uppercase; letter-spacing:1.3px; margin-top:6px; }
+
+  /* final: live status strip instead of generic gradient CTA */
+  .final{ background:var(--ink); color:var(--bg); border-radius:14px; margin:0 24px 0; padding:80px 40px; text-align:center; position:relative; overflow:hidden; }
+  .final::before{ content:''; position:absolute; inset:0; background-image:linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px); background-size:44px 44px; }
+  .final-inner{ position:relative; z-index:1; }
+  .final .eyebrow-stamp{ color:#C9A94A; border-color:#C9A94A; display:inline-block; }
+  .final h2{ color:var(--bg); max-width:640px; margin:20px auto 14px; }
+  .final .sub{ color:#9EA192; margin:0 auto 38px; }
+  .final .cta-row{ margin-bottom:0; }
+  .final .btn-primary{ background:#F3F4EE; color:var(--ink); }
+  .final .btn-ghost{ border-color:#4A4D42; color:var(--bg); }
+  .final .btn-ghost:hover{ background:rgba(255,255,255,0.06); border-color:#8a8d7e; }
+
+  .ticker{ display:flex; justify-content:center; gap:40px; flex-wrap:wrap; margin-top:50px; padding-top:36px; border-top:1px solid rgba(255,255,255,0.1); position:relative; z-index:1; }
+  .ticker .t-num{ font-family:'JetBrains Mono',monospace; font-size:22px; font-weight:600; color:#F3F4EE; }
+  .ticker .t-lab{ font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:1px; color:#7d8072; text-transform:uppercase; margin-top:4px; }
+
+  footer{ padding:32px 48px; display:flex; justify-content:space-between; align-items:center; color:var(--ink-faint); font-size:12px; font-family:'JetBrains Mono',monospace; flex-wrap:wrap; gap:10px; }
+  footer .fdot{ display:inline-flex; align-items:center; gap:6px; }
+  footer .fdot::before{ content:''; width:5px; height:5px; border-radius:50%; background:var(--trace); }
+</style>
+</head>
+<body>
+
+<div class="grid-bg"></div>
+<div class="cur-dot" id="curDot"></div>
+<div class="cur-ring" id="curRing"></div>
+
+<nav>
+  <div class="logo">Dhokha<span>.</span></div>
+  <div class="nav-links">
+    <a href="#problem">The blind spot</a>
+    <a href="#capabilities">How it works</a>
+    <a href="#cta">Access</a>
+  </div>
+  <div class="status-pill"><span class="dot pulse"></span> Monitoring live</div>
+</nav>
+
+<section class="hero">
+  <div class="eyebrow-stamp">Cross-Bank Fraud Intelligence</div>
+  <h1 class="headline">Every bank reads<br>one page. We read <em>the ledger.</em></h1>
+  <p class="sub">Fraud rings move across banks on purpose, so no single institution ever sees the full chain. Dhokha correlates the trace in real time, before the money clears.</p>
+  <div class="cta-row">
+    <button class="btn btn-primary" data-hover>See it trace a ring</button>
+    <button class="btn btn-ghost" data-hover>Request case file →</button>
+  </div>
+
+  <div class="trace-wrap">
+    <svg class="trace" viewBox="0 0 900 300" preserveAspectRatio="xMidYMid meet">
+      <path class="trace-line d1" d="M 150 60 Q 380 90 445 220" />
+      <path class="trace-line d2" d="M 450 55 Q 452 140 450 220" />
+      <path class="trace-line d3" d="M 750 60 Q 540 95 460 220" />
+
+      <rect class="node" x="70" y="24" width="160" height="66" rx="6"/>
+      <circle class="node-dot" cx="90" cy="42" r="4"/>
+      <text class="trace-label" x="102" y="46">BANK A · MUMBAI</text>
+      <text class="trace-label amt" x="90" y="68">₹48,200</text>
+      <text class="trace-label" x="90" y="82" fill="#9A9B8C">TXN-9F21-A</text>
+
+      <rect class="node" x="370" y="10" width="160" height="66" rx="6"/>
+      <circle class="node-dot" cx="390" cy="28" r="4"/>
+      <text class="trace-label" x="402" y="32">BANK B · PUNE</text>
+      <text class="trace-label amt" x="390" y="54">₹1,12,000</text>
+      <text class="trace-label" x="390" y="68" fill="#9A9B8C">TXN-7C08-B</text>
+
+      <rect class="node" x="670" y="24" width="160" height="66" rx="6"/>
+      <circle class="node-dot" cx="690" cy="42" r="4"/>
+      <text class="trace-label" x="702" y="46">BANK C · DELHI</text>
+      <text class="trace-label amt" x="690" y="68">₹63,500</text>
+      <text class="trace-label" x="690" y="82" fill="#9A9B8C">TXN-4E77-C</text>
+
+      <rect class="node node-center" x="360" y="220" width="180" height="70" rx="6"/>
+      <circle class="node-dot center" cx="380" cy="238" r="4"/>
+      <text class="trace-label center" x="392" y="242">CONSOLIDATED · SWARM</text>
+      <text class="trace-label amt" x="380" y="264" fill="#B23A2E">₹2,23,700</text>
+      <text class="trace-label" x="380" y="278" fill="#9A9B8C">MULE-RING-0092</text>
+    </svg>
+  </div>
+</section>
+
+<section id="problem">
+  <div class="container split">
+    <div class="reveal">
+      <div class="eyebrow">The blind spot</div>
+      <h2>Every bank is investigating the same case, separately, and half-blind.</h2>
+      <p class="lead">Each institution sees only its own accounts. A ring that hops through three banks looks, to each of them, like three unrelated, ordinary stories.</p>
+      <p class="lead">Dhokha sits above the banks, correlating device fingerprints, identities, and timing across institutions, turning three quiet case files into one obvious pattern.</p>
+    </div>
+    <div class="compare reveal">
+      <div class="compare-row">
+        <div class="label">Without Dhokha</div>
+        <div class="nodes-row"><div class="n"></div><div class="n"></div><div class="n"></div><div class="n"></div><div class="n"></div></div>
+      </div>
+      <div class="compare-row after">
+        <div class="label">With Dhokha</div>
+        <div class="nodes-row linked"><div class="n"></div><div class="n"></div><div class="n"></div><div class="n"></div><div class="n"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="capabilities">
+  <div class="container">
+    <div class="reveal" style="text-align:center; margin-bottom:52px;">
+      <div class="eyebrow">How it works</div>
+      <h2>Three signals, read together.</h2>
+    </div>
+    <div class="ledger reveal">
+      <div class="ledger-item">
+        <span class="tag">SPEED</span>
+        <h3>Scored under 200ms</h3>
+        <p>Every transaction gets a behavioral and device-risk score before it settles — fast enough to sit in the live payment path, not a nightly batch report.</p>
+      </div>
+      <div class="ledger-item">
+        <span class="tag">NETWORK</span>
+        <h3>Cross-bank identity graph</h3>
+        <p>Devices and identities are correlated across institutions, exposing rings that would look like unrelated accounts to any single bank alone.</p>
+      </div>
+      <div class="ledger-item">
+        <span class="tag">PROOF</span>
+        <h3>Explainable, not a black box</h3>
+        <p>Every flag ships with the reasons behind it — fan-in spikes, new devices, timing anomalies — so an analyst can act with confidence, not guesswork.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <div class="stats-strip reveal">
+      <div class="stat"><div class="num">&lt;200ms</div><div class="lab">Scoring latency</div></div>
+      <div class="stat"><div class="num">04</div><div class="lab">Swarm patterns tracked</div></div>
+      <div class="stat"><div class="num">24/7</div><div class="lab">Live monitoring</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="cta">
+  <div class="final reveal">
+    <div class="final-inner">
+      <div class="eyebrow-stamp">Case status: active</div>
+      <h2>Stop investigating fraud one bank at a time.</h2>
+      <p class="sub">Watch Dhokha trace a live scam ring across three banks in real time.</p>
+      <div class="cta-row">
+        <button class="btn btn-primary" data-hover>Open the case</button>
+        <button class="btn btn-ghost" data-hover>Talk to the team</button>
+      </div>
+      <div class="ticker">
+        <div><div class="t-num" data-count="18420">0</div><div class="t-lab">Transactions scored today</div></div>
+        <div><div class="t-num" data-count="6">0</div><div class="t-lab">Swarms caught this week</div></div>
+        <div><div class="t-num" data-count="223700" data-prefix="₹">0</div><div class="t-lab">Protected in last flag</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="fdot">Dhokha — shared intelligence for modern banking.</div>
+  <div>CASE FILE NO. 2026-UPI-0004</div>
+</footer>
+
+<script>
+  // cursor
+  const dot = document.getElementById('curDot');
+  const ring = document.getElementById('curRing');
+  let mx=0,my=0,rx=0,ry=0;
+  window.addEventListener('mousemove', e=>{ mx=e.clientX; my=e.clientY; dot.style.left=mx+'px'; dot.style.top=my+'px'; });
+  function loop(){ rx += (mx-rx)*0.2; ry += (my-ry)*0.2; ring.style.left=rx+'px'; ring.style.top=ry+'px'; requestAnimationFrame(loop); }
+  loop();
+  document.querySelectorAll('[data-hover], a, button').forEach(el=>{
+    el.addEventListener('mouseenter', ()=>ring.classList.add('hover'));
+    el.addEventListener('mouseleave', ()=>ring.classList.remove('hover'));
+  });
+
+  // scroll reveal
+  const io = new IntersectionObserver(entries=>{
+    entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); } });
+  }, {threshold:0.15});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+  // ticker count-up
+  const counters = document.querySelectorAll('[data-count]');
+  const cio = new IntersectionObserver(entries=>{
+    entries.forEach(en=>{
+      if(!en.isIntersecting) return;
+      cio.unobserve(en.target);
+      const el = en.target;
+      const target = parseInt(el.dataset.count, 10);
+      const prefix = el.dataset.prefix || '';
+      const dur = 1200; const start = performance.now();
+      function tick(now){
+        const p = Math.min(1, (now-start)/dur);
+        const val = Math.floor(target * (1 - Math.pow(1-p, 3)));
+        el.textContent = prefix + val.toLocaleString('en-IN');
+        if(p < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    });
+  }, {threshold:0.4});
+  counters.forEach(c=>cio.observe(c));
+</script>
+
+</body>
+</html>

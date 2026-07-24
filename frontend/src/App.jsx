@@ -1,14 +1,23 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Landing from './pages/Landing';
-import Dashboard from './pages/Dashboard';
+import DashboardLayout from './pages/dashboard/DashboardLayout';
+import CustomCursor from './components/landing/CustomCursor';
+import './App.css';
 
-export default function App() {
+function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Landing />} />
-        <Route path="/dashboard/*" element={<Dashboard />} />
+        <Route path="/" element={
+          <>
+            <CustomCursor />
+            <Landing />
+          </>
+        } />
+        <Route path="/dashboard/*" element={<DashboardLayout />} />
       </Routes>
     </BrowserRouter>
   );
 }
+
+export default App;

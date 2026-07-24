@@ -1,4 +1,4 @@
-// SHAP feature contributions per node (values sum to risk score)
+// SHAP feature contributions per node
 export const explainability = {
   'ACC-A01': {
     accountId: 'ACC-A01',
