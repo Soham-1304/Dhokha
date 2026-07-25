@@ -19,7 +19,7 @@ const PRESETS = [
     label: '🟡 Moderate — Threshold Dodge (Medium Risk)',
     data: {
       sender_upi: 'ACC-002',
-      receiver_upi: 'ACC-000',
+      receiver_upi: 'ACC-004',
       amount: '9999',
       device_id: 'normal-device-002',
       bank: 'State Bank of India',
@@ -29,11 +29,11 @@ const PRESETS = [
   {
     label: '🟢 Safe — Normal Payment (Low Risk)',
     data: {
-      sender_upi: 'ACC-001',
-      receiver_upi: 'ACC-002',
+      sender_upi: 'ACC-010',
+      receiver_upi: 'ACC-011',
       amount: '500',
-      device_id: 'normal-device-001',
-      bank: 'ICICI Bank',
+      device_id: 'normal-device-010',
+      bank: 'Axis Bank',
       city: 'Bangalore',
     },
   },

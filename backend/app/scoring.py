@@ -68,21 +68,23 @@ def _rule_score(features: dict[str, float], payload: ScoreRequest | None = None)
     if payload:
         receiver_id = payload.receiver_account_id.upper()
         amount = payload.amount
-        # Mule Target Hub Rule
+        # Mule Target Hub Rule (ACC-000 / MULE)
         if receiver_id == "ACC-000" or "MULE" in receiver_id:
             scores.append(("B", 0.92 if amount >= 40000 else 0.85))
-        # Threshold Dodge Structuring Rule
-        if (9900 <= amount <= 9999) or (49000 <= amount <= 49999):
+        # Threshold Dodge Structuring Rule (9900..9999 or 49000..49999)
+        elif (9900 <= amount <= 9999) or (49000 <= amount <= 49999):
             scores.append(("D", 0.65))
 
     if features["identity_bank_count"] >= 2 and features["velocity_5m"] >= 1:
         scores.append(("A", min(0.98, 0.70 + 0.08 * features["identity_bank_count"])))
     if features["fan_in"] >= 4 and features["receiver_age_days"] < 30:
         scores.append(("B", min(0.98, 0.65 + 0.06 * features["fan_in"])))
-    if features["closes_cycle"] or features["chain_depth"] >= 3:
+    # Type C layering chain: requires actual cycle closure OR rapid high velocity chain (>3 txns in 60s)
+    if features["closes_cycle"] or (features["velocity_60s"] >= 3 and features["chain_depth"] >= 3):
         scores.append(("C", 0.96 if features["closes_cycle"] else 0.82))
     if features["device_account_count"] >= 3 and features["device_bank_count"] >= 2:
         scores.append(("D", min(0.99, 0.72 + 0.06 * features["device_account_count"])))
+
     return max((score for _, score in scores), default=0.0), list(set(kind for kind, _ in scores))
 
 
