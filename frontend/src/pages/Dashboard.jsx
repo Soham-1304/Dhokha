@@ -1,11 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { connectStream, injectSwarm } from '../api/client';
+import { connectEventStream, injectSwarm } from '../api/client';
+import { getRecentLivePayments, subscribeToLivePayments } from '../api/livePayments';
 import { transactions as initialTxns } from '../data/mockData';
 import { ShieldAlert, AlertTriangle, Flame, Activity, Radio } from 'lucide-react';
 import './Dashboard.css';
 
-const formatAmount = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
+const formatAmount = (n) => n == null ? '—' : '₹' + Number(n).toLocaleString('en-IN');
 
 const formatTime = (ts) => {
   if (!ts) return '--:--:--';
@@ -116,19 +117,43 @@ function RechartsDonut({ highCount, medCount, lowCount, total }) {
 }
 
 export default function Dashboard() {
-  const [streamData, setStreamData] = useState([]);
+  const [streamData, setStreamData] = useState(() => getRecentLivePayments());
   const [selectedTxn, setSelectedTxn] = useState(null);
   const [injecting, setInjecting] = useState(false);
 
-  // Combine initial mock data with live websocket stream
-  useEffect(() => {
-    const cleanup = connectStream((event) => {
-      if (event.type === 'transaction' && event.data) {
-        setStreamData((prev) => [event.data, ...prev].slice(0, 50));
-      }
-    });
-    return cleanup;
+  const addLiveTransaction = useCallback(transaction => {
+    if (!transaction?.id) return;
+    setStreamData(prev => [
+      transaction,
+      ...prev.filter(item => item.id !== transaction.id),
+    ].slice(0, 50));
   }, []);
+
+  // Consume the backend's shared event envelope and complete browser-side payment rows.
+  useEffect(() => {
+    const socket = connectEventStream({
+      onEvent: event => {
+        if (!['transaction_scored', 'swarm_candidate'].includes(event.event_type) || !event.payload) return;
+        const payload = event.payload;
+        addLiveTransaction({
+          id: payload.transaction_id,
+          sender_account_id: payload.sender_account_id,
+          receiver_account_id: payload.receiver_account_id,
+          amount: payload.amount ?? null,
+          risk_score: Math.round((payload.confidence || 0) * 100),
+          decision: payload.decision,
+          timestamp: event.timestamp,
+          suspected_swarm_types: payload.suspected_swarm_types || [],
+          _live: true,
+        });
+      },
+    });
+    const unsubscribe = subscribeToLivePayments(addLiveTransaction);
+    return () => {
+      socket.close();
+      unsubscribe();
+    };
+  }, [addLiveTransaction]);
 
   const allTxns = useMemo(() => {
     return [...streamData, ...initialTxns];
@@ -194,17 +219,8 @@ export default function Dashboard() {
     setInjecting(true);
     try {
       await injectSwarm(type, 5);
-    } catch {
-      const mockSwarm = Array.from({ length: 3 }).map((_, i) => ({
-        id: `TXN-SWARM-${Date.now()}-${i}`,
-        sender_upi: `user_suspect_${i + 1}@ybl`,
-        receiver_upi: `shell_mule_${type}@paytm`,
-        amount: Math.floor(Math.random() * 40000) + 20000,
-        risk_score: Math.floor(Math.random() * 15) + 85,
-        decision: 'block',
-        timestamp: new Date().toISOString(),
-      }));
-      setStreamData(prev => [...mockSwarm, ...prev]);
+    } catch (error) {
+      console.error('Live swarm injection failed:', error);
     } finally {
       setTimeout(() => setInjecting(false), 400);
     }
@@ -225,13 +241,13 @@ export default function Dashboard() {
 
         <div className="d-swarm-triggers">
           <span className="d-swarm-lbl">SIMULATE ATTACK:</span>
-          <button className="d-swarm-btn" onClick={() => handleSimulate('identity')} disabled={injecting}>
+          <button className="d-swarm-btn" onClick={() => handleSimulate('A')} disabled={injecting}>
             Identity Swarm
           </button>
-          <button className="d-swarm-btn" onClick={() => handleSimulate('mule')} disabled={injecting}>
+          <button className="d-swarm-btn" onClick={() => handleSimulate('B')} disabled={injecting}>
             Mule Fan-in
           </button>
-          <button className="d-swarm-btn" onClick={() => handleSimulate('layering')} disabled={injecting}>
+          <button className="d-swarm-btn" onClick={() => handleSimulate('C')} disabled={injecting}>
             Layering Ring
           </button>
         </div>
@@ -248,7 +264,7 @@ export default function Dashboard() {
                 <Activity size={16} />
                 <span>LIVE TRANSACTIONS</span>
               </div>
-              <div className="d-badge-count">{totalCount} Monitored</div>
+              <div className="d-badge-count">{streamData.length} Live · {initialTxns.length} Baseline</div>
             </div>
 
             <div className="d-table-wrapper">
