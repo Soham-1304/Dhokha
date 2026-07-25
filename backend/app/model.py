@@ -2,7 +2,6 @@ from pathlib import Path
 
 from app.config import settings
 
-
 FEATURE_ORDER = [
     "amount_zscore", "velocity_60s", "velocity_5m", "time_since_last",
     "new_device", "device_account_count", "device_bank_count", "unusual_hour",
@@ -37,17 +36,25 @@ class FraudModel:
                 return probability, []
             except Exception:
                 pass
-        # Transparent fallback approximates a conservative baseline model.
-        weighted = (
-            min(features["amount_zscore"] / 6, 1) * 0.15
-            + min(features["velocity_60s"] / 5, 1) * 0.12
-            + features["new_device"] * 0.08
-            + min(features["device_account_count"] / 5, 1) * 0.20
-            + min(features["fan_in"] / 5, 1) * 0.18
-            + min(features["identity_bank_count"] / 3, 1) * 0.12
-            + features["closes_cycle"] * 0.15
-        )
-        return min(weighted, 0.99), []
+
+        # Transparent heuristic model aligning ML feature weights to risk tiers
+        zscore_component = min(features["amount_zscore"] / 10, 1.0) * 0.45
+        velocity_component = min(features["velocity_60s"] / 4, 1.0) * 0.20
+        fan_in_component = min(features["fan_in"] / 4, 1.0) * 0.20
+        device_component = min(features["device_account_count"] / 4, 1.0) * 0.15
+        
+        raw_prob = zscore_component + velocity_component + fan_in_component + device_component + (0.15 if features["closes_cycle"] else 0.0)
+        probability = min(0.99, max(0.08, raw_prob))
+
+        reasons = []
+        if features["amount_zscore"] >= 3:
+            reasons.append(f"Amount is {features['amount_zscore']:.1f}× sender baseline")
+        if features["fan_in"] >= 3:
+            reasons.append(f"Receiver has {int(features['fan_in'])} recent incoming senders")
+        if features["device_account_count"] >= 3:
+            reasons.append(f"Device shared across {int(features['device_account_count'])} accounts")
+
+        return probability, reasons
 
 
 fraud_model = FraudModel()
