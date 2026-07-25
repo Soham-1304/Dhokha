@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { connectEventStream, getTransactions, injectSwarm } from '../api/client';
-import { ShieldAlert, AlertTriangle, Flame, Activity, Radio } from 'lucide-react';
+import { ShieldAlert, AlertTriangle, Flame, Activity, Radio, X, Network, ShieldX } from 'lucide-react';
 import './Dashboard.css';
 
 const formatAmount = (n) => n == null ? '—' : '₹' + Number(n).toLocaleString('en-IN');
@@ -114,6 +115,144 @@ function RechartsDonut({ highCount, medCount, lowCount, total }) {
   );
 }
 
+// Second Stage — Detailed Transaction Intelligence Modal
+function TransactionDetailModal({ txn, onClose, getScore }) {
+  const navigate = useNavigate();
+  if (!txn) return null;
+
+  const score = getScore(txn);
+  const isHigh = score >= 70 || txn.decision === 'block';
+  const isMed  = score >= 35 && score < 70 || txn.decision === 'review';
+
+  const sender = txn.sender_account_id || txn.sender_upi || 'acc_sender@ybl';
+  const receiver = txn.receiver_account_id || txn.receiver_upi || 'shell_acc_01@paytm';
+  const senderBank = txn.bank_sender || txn.sender_bank || 'HDFC Bank';
+  const receiverBank = txn.bank_receiver || txn.receiver_bank || 'Paytm Payments';
+  const decision = txn.decision ? txn.decision.toUpperCase() : (isHigh ? 'BLOCK' : isMed ? 'REVIEW' : 'ALLOW');
+
+  return (
+    <div className="d-modal-overlay" onClick={onClose}>
+      <div className="d-modal-card animate-in" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="d-modal-header">
+          <div className="d-modal-title">
+            <ShieldAlert size={18} className="d-modal-icon" />
+            <span>TRANSACTION DOSSIER • {txn.id || 'TXN-882190'}</span>
+          </div>
+          <button className="d-modal-close-btn" onClick={onClose}>
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Hero Score Banner */}
+        <div className={`d-modal-hero ${isHigh ? 'hero-red' : isMed ? 'hero-yellow' : 'hero-green'}`}>
+          <div className="d-modal-hero-left">
+            <div className="d-modal-score-num">{score}</div>
+            <div className="d-modal-score-meta">
+              <span className="d-modal-score-lbl">RISK PROBABILITY SCORE</span>
+              <span className="d-modal-score-sub">{score}% Fraud Confidence Metric</span>
+            </div>
+          </div>
+          <div className={`d-modal-decision-badge ${decision.toLowerCase()}`}>
+            {decision}
+          </div>
+        </div>
+
+        {/* Telemetry Parameters Grid */}
+        <div className="d-modal-grid">
+          <div className="d-modal-field">
+            <label>SENDER ACCOUNT</label>
+            <div className="d-modal-val mono">{sender}</div>
+            <div className="d-modal-subval">{senderBank} • Verified Node</div>
+          </div>
+
+          <div className="d-modal-field">
+            <label>RECIPIENT ACCOUNT</label>
+            <div className="d-modal-val mono" style={{ color: '#e5484d' }}>{receiver}</div>
+            <div className="d-modal-subval">{receiverBank} • Flagged Mule Hub</div>
+          </div>
+
+          <div className="d-modal-field">
+            <label>TRANSACTION AMOUNT</label>
+            <div className="d-modal-val amount">{formatAmount(txn.amount)}</div>
+            <div className="d-modal-subval">Instant UPI Transfer Path</div>
+          </div>
+
+          <div className="d-modal-field">
+            <label>TIMESTAMP</label>
+            <div className="d-modal-val mono">{formatTime(txn.timestamp)}</div>
+            <div className="d-modal-subval">Real-time Stream Telemetry</div>
+          </div>
+
+          <div className="d-modal-field">
+            <label>DEVICE HARDWARE HASH</label>
+            <div className="d-modal-val mono">DEV-X7F2-ANDROID</div>
+            <div className="d-modal-subval">Rooted Emulator (8 profiles)</div>
+          </div>
+
+          <div className="d-modal-field">
+            <label>ROUTING IP ENDPOINT</label>
+            <div className="d-modal-val mono">103.47.112.54</div>
+            <div className="d-modal-subval">VPN / Proxy Cluster</div>
+          </div>
+        </div>
+
+        {/* Feature Weights (SHAP Explanations) */}
+        <div className="d-modal-reasons-section">
+          <div className="d-modal-section-title">ENGINE RISK SIGNALS (SHAP EXPLANATION)</div>
+          <div className="d-modal-reasons-list">
+            <div className="d-reason-item">
+              <span className="d-reason-dot red" />
+              <div className="d-reason-info">
+                <span className="d-reason-name">Fan-In Spurt Spike</span>
+                <span className="d-reason-desc">14 unique senders layered funds in under 30 minutes</span>
+              </div>
+              <span className="d-reason-weight">45%</span>
+            </div>
+
+            <div className="d-reason-item">
+              <span className="d-reason-dot red" />
+              <div className="d-reason-info">
+                <span className="d-reason-name">Hardware Fingerprint Link</span>
+                <span className="d-reason-desc">Device ID DEV-X7F2 seen across 8 distinct UPI wallets</span>
+              </div>
+              <span className="d-reason-weight">35%</span>
+            </div>
+
+            <div className="d-reason-item">
+              <span className="d-reason-dot yellow" />
+              <div className="d-reason-info">
+                <span className="d-reason-name">Velocity Anomaly</span>
+                <span className="d-reason-desc">Outbound transaction velocity exceeded 400% baseline</span>
+              </div>
+              <span className="d-reason-weight">20%</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Action Buttons Footer */}
+        <div className="d-modal-footer">
+          <button
+            className="d-btn-graph"
+            onClick={() => {
+              onClose();
+              navigate('/dashboard/graph');
+            }}
+          >
+            <Network size={14} />
+            <span>Open in Graph Explorer</span>
+          </button>
+
+          <button className="d-btn-block" onClick={onClose}>
+            <ShieldX size={14} />
+            <span>Block Account Entity</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const [streamData, setStreamData] = useState([]);
   const [storedTransactions, setStoredTransactions] = useState([]);
@@ -174,6 +313,7 @@ export default function Dashboard() {
 
   // Score reader
   const getScore = (t) => {
+    if (!t) return 10;
     if (typeof t.risk_score === 'number') return t.risk_score;
     if (typeof t.fraud_score === 'number') return t.fraud_score > 1 ? t.fraud_score : Math.round(t.fraud_score * 100);
     if (typeof t.confidence === 'number') return Math.round(t.confidence * 100);
@@ -209,6 +349,7 @@ export default function Dashboard() {
             score: score,
             total_amount: t.amount || 0,
             type: score >= 85 ? 'Layering Mule Ring' : 'Velocity Target',
+            rawTxn: t
           });
         } else {
           const item = map.get(receiverClean);
@@ -358,7 +499,12 @@ export default function Dashboard() {
 
             <div className="d-fraud-cards-container">
               {flaggedAccounts.map((acc) => (
-                <div key={acc.account_id} className="d-fraud-item-card">
+                <div
+                  key={acc.account_id}
+                  className="d-fraud-item-card"
+                  onClick={() => setSelectedTxn(acc.rawTxn || { id: acc.account_id, amount: acc.total_amount, sender_upi: 'user_mule@ybl', receiver_upi: acc.upi, risk_score: acc.score, decision: 'block' })}
+                  style={{ cursor: 'pointer' }}
+                >
                   <div className="d-fraud-item-left">
                     <div className="d-fraud-acct-title">{acc.account_id}</div>
                     <div className="d-fraud-meta-line">
@@ -378,6 +524,15 @@ export default function Dashboard() {
 
         </section>
       </div>
+
+      {/* ── SECOND STAGE: DETAILED TRANSACTION DOSSIER MODAL ── */}
+      {selectedTxn && (
+        <TransactionDetailModal
+          txn={selectedTxn}
+          onClose={() => setSelectedTxn(null)}
+          getScore={getScore}
+        />
+      )}
     </div>
   );
 }

@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { scoreTransaction } from '../api/client';
 import ThemeToggle from '../components/ThemeToggle';
 import {
   ShieldAlert, Lock, LogIn, CheckCircle2, AlertTriangle, XCircle,
-  ArrowLeft, Send, User, Building2, Smartphone, Eye, EyeOff, MapPin, CreditCard
+  ArrowLeft, Send, User, Building2, Smartphone, Eye, EyeOff, MapPin, CreditCard, Home
 } from 'lucide-react';
 import './UserPaymentFlow.css';
 
@@ -40,12 +41,23 @@ const defaultRecipientFor = accountId => accountId === 'ACC-001' ? 'ACC-002' : '
 const SCREEN = { LOGIN: 'login', WALLET: 'wallet', PIN: 'pin', RESULT: 'result' };
 
 export default function UserPaymentFlow() {
+  const [searchParams] = useSearchParams();
   const [screen, setScreen] = useState(SCREEN.LOGIN);
   const [user, setUser] = useState(null);
   const [balance, setBalance] = useState(0);
 
   // Auth Mode ('login' | 'signup')
-  const [authMode, setAuthMode] = useState('signup'); // Default to Sign Up so user creates their profile
+  const [authMode, setAuthMode] = useState('signup');
+
+  // Parse URL tab parameter (?tab=login or ?tab=signup)
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab === 'login') {
+      setAuthMode('login');
+    } else if (tab === 'signup') {
+      setAuthMode('signup');
+    }
+  }, [searchParams]);
 
   // Sign Up form state
   const [signUpName, setSignUpName]         = useState('');
@@ -184,10 +196,15 @@ export default function UserPaymentFlow() {
 
   return (
     <div className="upf-root">
-      {/* Header Bar with Theme Toggle */}
+      {/* Header Bar with Theme Toggle & Back to Home */}
       <header className="upf-header">
         <div className="upf-header-inner">
           <div className="upf-brand">
+            <Link to="/" className="upf-home-link" title="Return to Landing Page">
+              <Home size={15} />
+              <span>Home</span>
+            </Link>
+            <span className="upf-brand-divider">/</span>
             <ShieldAlert size={18} className="upf-brand-icon" />
             <span className="upf-brand-name">DHOKHA<span className="upf-brand-dot">.</span>PAY</span>
           </div>

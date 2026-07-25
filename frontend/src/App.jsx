@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Landing          from './pages/Landing';
+import StoryPage        from './pages/StoryPage';
 import DashboardLayout  from './pages/dashboard/DashboardLayout';
 import UserPaymentFlow  from './pages/UserPaymentFlow';
 import CustomCursor     from './components/landing/CustomCursor';
@@ -18,6 +19,9 @@ function App() {
             <Landing />
           </>
         } />
+
+        {/* Story — scroll-driven payment overview */}
+        <Route path="/story" element={<StoryPage />} />
 
         {/* User Payment Flow — Dhokha Cyber-Detective Aesthetic */}
         <Route path="/pay" element={<UserPaymentFlow />} />

@@ -1,0 +1,595 @@
+/* ============================================================
+   STORY PAGE — "See it in Action"
+   Premium scroll-driven product story
+   Apple × Stripe × Arc cinematics
+   ============================================================ */
+
+/* ─── Page Container ─── */
+.story-page {
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* ─── Scene Containers ─── */
+.story-scene {
+  position: relative;
+  width: 100%;
+}
+
+.story-sticky {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 40px;
+}
+
+/* ─── Scene Heights (scroll room for animations) ─── */
+.scene-payment  { min-height: 100vh; }
+.scene-journey  { min-height: 120vh; }
+.scene-analysis { min-height: 100vh; }
+.scene-graph    { min-height: 100vh; }
+.scene-block    { min-height: 100vh; }
+.scene-finale   { min-height: 100vh; }
+
+/* ─── Typography ─── */
+.story-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--string);
+  margin-bottom: 24px;
+}
+
+.story-headline {
+  font-family: var(--font-heading);
+  font-size: clamp(38px, 5.5vw, 64px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+  text-align: center;
+  color: var(--text);
+  max-width: 860px;
+}
+
+.story-headline em {
+  font-style: normal;
+  color: var(--string);
+}
+
+.story-subtext {
+  font-family: var(--font-body);
+  font-size: clamp(15px, 1.3vw, 19px);
+  font-weight: 400;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  text-align: center;
+  max-width: 520px;
+  margin-top: 20px;
+}
+
+.story-subtext em {
+  font-style: normal;
+  color: var(--text);
+  font-weight: 500;
+}
+
+/* ─── Scene 1: The Payment — Phone ─── */
+.scene-payment .story-sticky {
+  gap: 0;
+}
+
+.phone-frame {
+  position: relative;
+  width: 160px;
+  margin-bottom: 48px;
+  flex-shrink: 0;
+}
+
+.phone-frame svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.phone-screen {
+  position: absolute;
+  top: 12%;
+  left: 12.5%;
+  width: 75%;
+  height: 76%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+/* QR Code Display */
+.qr-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.qr-code {
+  width: 64px;
+  height: 64px;
+}
+
+.qr-amount {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.qr-scan-label {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* Scan line animation */
+.phone-scan-line {
+  position: absolute;
+  left: 14%;
+  right: 14%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--string), transparent);
+  border-radius: 1px;
+  animation: scanLine 2.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes scanLine {
+  0%, 100% { top: 18%; opacity: 0.2; }
+  50%      { top: 78%; opacity: 0.6; }
+}
+
+/* ─── Scene 2: The Journey — Flow Visualization ─── */
+.scene-journey .story-sticky {
+  gap: 0;
+}
+
+.flow-svg {
+  width: 92%;
+  max-width: 1100px;
+  height: auto;
+  margin-top: 24px;
+}
+
+.flow-label {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--text);
+  letter-spacing: 0.01em;
+}
+
+.flow-sublabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  fill: var(--text-secondary);
+  letter-spacing: 0.05em;
+}
+
+/* ─── Scene 3: The Analysis — Floating Chips ─── */
+.scene-analysis .story-sticky {
+  gap: 0;
+}
+
+.analysis-container {
+  position: relative;
+  width: 100%;
+  max-width: 780px;
+  height: 420px;
+  flex-shrink: 0;
+}
+
+/* Central transaction indicator */
+.analysis-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--string-bg);
+  border: 1.5px solid rgba(229, 72, 77, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.analysis-center::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--string);
+  box-shadow: 0 0 16px rgba(229, 72, 77, 0.5);
+}
+
+/* Pulse rings from center */
+.analysis-center-ring {
+  position: absolute;
+  inset: -30%;
+  border-radius: 50%;
+  border: 1px solid rgba(229, 72, 77, 0.08);
+  animation: analysisRipple 3.5s ease-out infinite;
+}
+
+.analysis-center-ring.ring-2 {
+  animation-delay: 1.75s;
+}
+
+@keyframes analysisRipple {
+  0%   { transform: scale(0.6); opacity: 1; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Glassmorphism Chips */
+.analysis-chip {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 22px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: 14px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+  transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease);
+  cursor: default;
+}
+
+.analysis-chip:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.chip-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--string-bg);
+  color: var(--string);
+  flex-shrink: 0;
+}
+
+/* ─── Scene 4: The Graph ─── */
+.scene-graph .story-sticky {
+  gap: 0;
+}
+
+.graph-svg {
+  width: 92%;
+  max-width: 960px;
+  height: auto;
+}
+
+.graph-node-label {
+  font-family: var(--font-body);
+  font-size: 9.5px;
+  font-weight: 500;
+  fill: var(--text-secondary);
+}
+
+.graph-node-label.fraud-label {
+  fill: var(--string);
+  font-weight: 600;
+}
+
+.graph-detection-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  fill: var(--string);
+}
+
+/* Fraud ring node pulse */
+.fraud-pulse-ring {
+  animation: fraudPulse 2.2s ease-in-out infinite;
+  transform-origin: center;
+}
+
+@keyframes fraudPulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50%      { opacity: 0.6; transform: scale(1.3); }
+}
+
+/* ─── Scene 5: The Block ─── */
+.scene-block .story-sticky {
+  gap: 0;
+}
+
+.block-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 40px;
+  width: 100%;
+}
+
+/* Phone blocked state */
+.phone-blocked .phone-screen {
+  border: none;
+}
+
+.blocked-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.blocked-shield {
+  font-size: 28px;
+  color: var(--string);
+  margin-bottom: 4px;
+  line-height: 1;
+}
+
+.blocked-title {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--string);
+  letter-spacing: 0.02em;
+}
+
+.blocked-amount-phone {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  margin-top: 4px;
+}
+
+.blocked-status {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--safe);
+}
+
+/* Stats card */
+.block-card {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 40px 48px;
+  text-align: center;
+  max-width: 480px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+}
+
+.block-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background: linear-gradient(90deg, transparent, var(--string), var(--brass), transparent);
+}
+
+.block-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 28px;
+}
+
+.block-stat {
+  text-align: center;
+}
+
+.block-stat-value {
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+
+.block-stat-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.block-reason {
+  padding-top: 24px;
+  border-top: 1.5px solid var(--border);
+  text-align: left;
+}
+
+.block-reason-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.block-reason-text {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+/* ─── Scene 6: The Finale ─── */
+.finale-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.finale-headline {
+  font-family: var(--font-heading);
+  font-size: clamp(32px, 5vw, 64px);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.12;
+  color: var(--text-secondary);
+  max-width: 780px;
+  margin: 0;
+}
+
+.finale-headline em {
+  font-style: normal;
+  color: var(--text);
+}
+
+.finale-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 56px;
+  padding: 16px 40px;
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--string);
+  border: none;
+  border-radius: var(--radius);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+  transition: all 0.35s var(--ease);
+  cursor: pointer;
+  box-shadow: 0 4px 24px rgba(229, 72, 77, 0.25);
+}
+
+.finale-cta:hover {
+  background: #c93a3f;
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(229, 72, 77, 0.35);
+}
+
+.finale-cta:active {
+  transform: translateY(-1px);
+}
+
+/* ─── Light Mode Overrides ─── */
+:root[data-theme="light"] .analysis-chip {
+  background: #ffffff;
+  border-color: var(--border);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme="light"] .block-card {
+  background: #ffffff;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.05);
+}
+
+:root[data-theme="light"] .analysis-center {
+  background: rgba(229, 72, 77, 0.06);
+}
+
+:root[data-theme="light"] .chip-icon {
+  background: rgba(229, 72, 77, 0.08);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 900px) {
+  .story-sticky {
+    padding: 60px 24px;
+  }
+
+  .analysis-container {
+    max-width: 600px;
+    height: 480px;
+  }
+
+  .analysis-chip {
+    font-size: 12px;
+    padding: 10px 16px;
+    gap: 8px;
+  }
+
+  .chip-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 7px;
+  }
+
+  .block-card {
+    padding: 28px 24px;
+  }
+
+  .block-stats {
+    gap: 16px;
+  }
+
+  .phone-frame {
+    width: 140px;
+  }
+}
+
+@media (max-width: 600px) {
+  .story-sticky {
+    padding: 40px 16px;
+  }
+
+  .analysis-container {
+    max-width: 100%;
+    height: 520px;
+  }
+
+  .analysis-chip {
+    font-size: 11px;
+    padding: 8px 12px;
+  }
+
+  .block-card {
+    max-width: 100%;
+  }
+
+  .flow-svg {
+    width: 100%;
+  }
+
+  .graph-svg {
+    width: 100%;
+  }
+}

@@ -128,8 +128,8 @@ export default function Landing() {
         <Link to="/" className="logo" style={{ textDecoration: 'none' }}>DHOKHA<span>.</span></Link>
         <div className="nav-links">
           <Link to="/dashboard">Dashboard</Link>
-          <Link to="#">Sign Up</Link>
-          <Link to="#">Login</Link>
+          <Link to="/pay?tab=signup">Sign Up</Link>
+          <Link to="/pay?tab=login">Login</Link>
         </div>
         <div className="nav-utilities">
           <div className="case-toggle"><span className="dot"></span> CASE: OPEN</div>
@@ -142,7 +142,7 @@ export default function Landing() {
         <h1 className="headline">One bank sees a thread.<br/><em>Dhokha</em> sees the whole web.</h1>
         <p className="sub">Fraud rings move across banks on purpose — so no single institution ever sees the full chain. We connect the dots in real time, before the money disappears.</p>
         <div className="cta-row">
-          <Link to="/dashboard" className="btn btn-primary" data-hover="true" style={{ textDecoration: 'none' }}>See it in action</Link>
+          <Link to="/story" className="btn btn-primary" data-hover="true" style={{ textDecoration: 'none' }}>See it in action</Link>
           <Link to="/dashboard" className="btn btn-stamp" data-hover="true" style={{ textDecoration: 'none' }}>Request Case File</Link>
         </div>
 

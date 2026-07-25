@@ -80,13 +80,12 @@
 
 /* Cohesive columns container */
 .workspace-columns-container {
-  box-sizing: border-box;
-  display: grid;
-  grid-template-columns: 1fr 2fr 1fr;
-  gap: 20px;
-  padding: 24px;
-  height: calc(100vh - 48px);
+  display: flex;
+  flex: 1;
   overflow: hidden;
+  height: 100%;
+  padding: 24px;
+  gap: 20px;
 }
 
 /* dossier sheets reset to sharp charcoal panels */
@@ -106,11 +105,21 @@
   display: none;
 }
 
-.workspace-queue-column.dossier-sheet,
-.explorer-graph-canvas-column.dossier-sheet,
-.workspace-panel-column.dossier-sheet {
-  width: 100%;
+.workspace-queue-column.dossier-sheet {
+  width: 200px;
+  flex-shrink: 0;
+}
+
+.explorer-graph-canvas-column.dossier-sheet {
+  flex: 1;
   min-width: 0;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+}
+
+.workspace-panel-column.dossier-sheet {
+  width: 260px;
+  flex-shrink: 0;
 }
 
 .column-title-bar {
@@ -214,7 +223,7 @@
   height: calc(100% - 36px);
   position: relative;
   overflow: hidden;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-image: radial-gradient(var(--border) 1px, transparent 1px);
   background-size: 14px 14px;
 }
 /* Right Details Panel */
@@ -460,171 +469,6 @@
   color: var(--text);
 }
 
-/* Live backend integration */
-.workspace-columns-container.live-investigation {
-  padding-top: 76px;
-}
-
-.workspace-queue-column.live-queue {
-  width: 250px;
-}
-
-.live-stream-state {
-  font-size: 8px;
-  text-transform: uppercase;
-}
-
-.live-stream-state.online { color: var(--safe); }
-.live-stream-state.connecting { color: var(--brass); }
-.live-stream-state.offline { color: var(--risk-critical); }
-
-.live-swarm-controls {
-  display: grid;
-  gap: 7px;
-  padding: 12px;
-}
-
-.live-swarm-button,
-.live-reset-button,
-.live-account-search button {
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  cursor: pointer;
-}
-
-.live-swarm-button {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 9px 10px;
-  text-align: left;
-}
-
-.live-swarm-button strong {
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 10px;
-}
-
-.live-swarm-button span {
-  font-size: 10px;
-}
-
-.live-swarm-button:hover {
-  border-color: var(--string);
-  background: var(--string-bg);
-}
-
-.live-swarm-button:disabled,
-.live-reset-button:disabled {
-  cursor: wait;
-  opacity: 0.55;
-}
-
-.live-reset-button {
-  padding: 9px;
-  font-size: 9px;
-}
-
-.live-alert-card {
-  width: 100%;
-  border: 0;
-  color: inherit;
-  text-align: left;
-}
-
-.live-empty-copy,
-.live-error-copy {
-  padding: 18px;
-  color: var(--text-dim);
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.live-error-copy {
-  color: var(--risk-critical);
-}
-
-.live-account-search {
-  display: flex;
-  gap: 4px;
-}
-
-.live-account-search input {
-  width: 128px;
-  padding: 4px 7px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 9px;
-}
-
-.live-account-search button {
-  padding: 4px 8px;
-  font-size: 8px;
-  text-transform: uppercase;
-}
-
-.live-operation-bar {
-  position: absolute;
-  right: 12px;
-  bottom: 10px;
-  left: 12px;
-  display: flex;
-  justify-content: space-between;
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-  font-size: 8px;
-  pointer-events: none;
-}
-
-.live-alert-summary {
-  margin: 16px 18px 0;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--border);
-}
-
-.live-alert-summary h2 {
-  margin: 4px 0 14px;
-  color: var(--text);
-  font-size: 14px;
-}
-
-.live-evidence-list {
-  margin-top: 12px;
-  color: var(--text-secondary);
-  font-size: 10px;
-  line-height: 1.45;
-}
-
-.live-inspector {
-  width: 285px !important;
-}
-
-@media (max-width: 1050px) {
-  .explorer-layout {
-    height: auto;
-    min-height: 100vh;
-    overflow: auto;
-  }
-
-  .workspace-columns-container.live-investigation {
-    flex-direction: column;
-    overflow: visible;
-  }
-
-  .workspace-queue-column.live-queue,
-  .workspace-panel-column.live-inspector {
-    width: 100% !important;
-  }
-
-  .explorer-graph-canvas-column {
-    min-height: 560px;
-  }
-}
-
 .text-red {
   color: var(--string) !important;
 }
@@ -640,9 +484,4 @@
 @keyframes fade-in {
   from { opacity: 0; transform: translateY(3px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-:root[data-theme="light"] .explorer-layout {
-  background: #EFECE6;
-  background-image: repeating-linear-gradient(45deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 2px, transparent 2px, transparent 6px);
 }
