@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { scoreTransaction } from '../api/client';
-import { publishLivePayment } from '../api/livePayments';
 import ThemeToggle from '../components/ThemeToggle';
 import {
   ShieldAlert, Lock, LogIn, CheckCircle2, AlertTriangle, XCircle,
@@ -158,18 +157,6 @@ export default function UserPaymentFlow() {
     try {
       const res = await scoreTransaction(payload);
       setResult({ ...res, _amount: amt, _target: target });
-      publishLivePayment({
-        id: res.transaction_id,
-        sender_account_id: user.account_id,
-        receiver_account_id: target,
-        amount: amt,
-        risk_score: Math.round((res.final_confidence || 0) * 100),
-        fraud_probability: res.fraud_probability,
-        decision: res.decision,
-        timestamp: payload.timestamp,
-        suspected_swarm_types: res.suspected_swarm_types || [],
-        _live: true,
-      });
       if (res.decision === 'allow') setBalance(b => b - amt);
       setScreen(SCREEN.RESULT);
     } catch (error) {

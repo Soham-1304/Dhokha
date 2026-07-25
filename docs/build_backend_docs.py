@@ -380,7 +380,7 @@ def build():
         if line.startswith("## "):
             title = line[3:]
             active_num_id = None
-            if title in {"4. Runtime Architecture", "8. API Reference", "9. Demo Runbook", "13. Deployment"}:
+            if title in {"4. Runtime Architecture", "8. API Reference", "13. Deployment"}:
                 doc.add_page_break()
             doc.add_paragraph(title, style="Heading 1")
         elif line.startswith("### "):

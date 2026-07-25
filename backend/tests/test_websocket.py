@@ -23,4 +23,9 @@ def test_score_publishes_transaction_scored_event():
     assert response.status_code == 200
     assert event["event_type"] == "transaction_scored"
     assert event["payload"]["transaction_id"] == "websocket-normal-001"
+    assert event["payload"]["amount"] == 800
+    assert event["payload"]["timestamp"]
+    assert event["payload"]["fraud_probability"] >= 0
+    assert event["payload"]["sender_bank_id"] == "BANK_ALPHA"
+    assert event["payload"]["receiver_bank_id"] == "BANK_BETA"
     assert set(event) == {"event_type", "event_id", "timestamp", "payload"}

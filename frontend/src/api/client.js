@@ -42,6 +42,11 @@ export function scoreTransaction(payload) {
   });
 }
 
+export function getTransactions(search = {}) {
+  const params = new URLSearchParams(search);
+  return request(`/transactions${params.size ? `?${params}` : ''}`);
+}
+
 export function resetDemo() {
   return request('/demo/reset', { method: 'POST' });
 }

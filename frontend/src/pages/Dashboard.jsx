@@ -1,8 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { connectEventStream, injectSwarm } from '../api/client';
-import { getRecentLivePayments, subscribeToLivePayments } from '../api/livePayments';
-import { transactions as initialTxns } from '../data/mockData';
+import { connectEventStream, getTransactions, injectSwarm } from '../api/client';
 import { ShieldAlert, AlertTriangle, Flame, Activity, Radio } from 'lucide-react';
 import './Dashboard.css';
 
@@ -117,7 +115,8 @@ function RechartsDonut({ highCount, medCount, lowCount, total }) {
 }
 
 export default function Dashboard() {
-  const [streamData, setStreamData] = useState(() => getRecentLivePayments());
+  const [streamData, setStreamData] = useState([]);
+  const [storedTransactions, setStoredTransactions] = useState([]);
   const [selectedTxn, setSelectedTxn] = useState(null);
   const [injecting, setInjecting] = useState(false);
 
@@ -129,8 +128,15 @@ export default function Dashboard() {
     ].slice(0, 50));
   }, []);
 
-  // Consume the backend's shared event envelope and complete browser-side payment rows.
+  // Load persisted history once, then prepend new transactions from the shared event stream.
   useEffect(() => {
+    let active = true;
+    getTransactions({ limit: 100 })
+      .then(response => {
+        if (active) setStoredTransactions(response.items || []);
+      })
+      .catch(error => console.error('Transaction history failed to load:', error));
+
     const socket = connectEventStream({
       onEvent: event => {
         if (!['transaction_scored', 'swarm_candidate'].includes(event.event_type) || !event.payload) return;
@@ -139,30 +145,38 @@ export default function Dashboard() {
           id: payload.transaction_id,
           sender_account_id: payload.sender_account_id,
           receiver_account_id: payload.receiver_account_id,
+          sender_bank_id: payload.sender_bank_id,
+          receiver_bank_id: payload.receiver_bank_id,
           amount: payload.amount ?? null,
           risk_score: Math.round((payload.confidence || 0) * 100),
+          fraud_probability: payload.fraud_probability,
+          rule_score: payload.rule_score,
           decision: payload.decision,
-          timestamp: event.timestamp,
+          timestamp: payload.timestamp || event.timestamp,
           suspected_swarm_types: payload.suspected_swarm_types || [],
           _live: true,
         });
       },
     });
-    const unsubscribe = subscribeToLivePayments(addLiveTransaction);
     return () => {
+      active = false;
       socket.close();
-      unsubscribe();
     };
   }, [addLiveTransaction]);
 
   const allTxns = useMemo(() => {
-    return [...streamData, ...initialTxns];
-  }, [streamData]);
+    const liveIds = new Set(streamData.map(transaction => transaction.id));
+    return [
+      ...streamData,
+      ...storedTransactions.filter(transaction => !liveIds.has(transaction.id)),
+    ];
+  }, [streamData, storedTransactions]);
 
   // Score reader
   const getScore = (t) => {
     if (typeof t.risk_score === 'number') return t.risk_score;
     if (typeof t.fraud_score === 'number') return t.fraud_score > 1 ? t.fraud_score : Math.round(t.fraud_score * 100);
+    if (typeof t.confidence === 'number') return Math.round(t.confidence * 100);
     if (typeof t.fraud_probability === 'number') return Math.round(t.fraud_probability * 100);
     return 10;
   };
@@ -191,7 +205,7 @@ export default function Dashboard() {
           map.set(receiverClean, {
             account_id: receiverClean,
             upi: receiver,
-            bank_id: t.bank_receiver || t.receiver_bank || 'Paytm Payments',
+            bank_id: t.receiver_bank_id || t.bank_receiver || t.receiver_bank || 'Unknown bank',
             score: score,
             total_amount: t.amount || 0,
             type: score >= 85 ? 'Layering Mule Ring' : 'Velocity Target',
@@ -204,14 +218,6 @@ export default function Dashboard() {
       }
     });
 
-    if (map.size === 0) {
-      return [
-        { account_id: 'shell_acc_01', upi: 'shell_acc_01@paytm', bank_id: 'Paytm Payments', score: 92, total_amount: 223700, type: 'Layering Mule Ring' },
-        { account_id: 'mule_acc_02',  upi: 'mule_acc_02@icici', bank_id: 'ICICI Bank',      score: 87, total_amount: 145000, type: 'Device Cluster Hub' },
-        { account_id: 'shell_acc_03', upi: 'shell_acc_03@ybl',   bank_id: 'YES Bank',        score: 84, total_amount: 98000,  type: 'Identity Fan-out' },
-        { account_id: 'mule_acc_04',  upi: 'mule_acc_04@kotak', bank_id: 'Kotak Bank',       score: 78, total_amount: 54000,  type: 'Velocity Spike' },
-      ];
-    }
     return Array.from(map.values()).sort((a, b) => b.score - a.score).slice(0, 4);
   }, [allTxns]);
 
@@ -264,7 +270,7 @@ export default function Dashboard() {
                 <Activity size={16} />
                 <span>LIVE TRANSACTIONS</span>
               </div>
-              <div className="d-badge-count">{streamData.length} Live · {initialTxns.length} Baseline</div>
+              <div className="d-badge-count">{streamData.length} Live · {storedTransactions.length} Stored</div>
             </div>
 
             <div className="d-table-wrapper">

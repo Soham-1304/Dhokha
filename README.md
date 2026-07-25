@@ -29,6 +29,7 @@ The backend initializes a deterministic SQLite database automatically.
 - API: http://127.0.0.1:8000
 - Swagger: http://127.0.0.1:8000/docs
 - Health: http://127.0.0.1:8000/health
+- Persisted transaction history: http://127.0.0.1:8000/transactions
 
 Start the frontend in another terminal:
 

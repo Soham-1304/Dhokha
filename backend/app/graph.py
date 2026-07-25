@@ -60,7 +60,10 @@ class GraphEngine:
             event_type = "swarm_candidate" if suspected_types else "transaction_scored"
             await event_hub.publish(Event(event_type=event_type, payload={
                 "transaction_id": txn.id, "sender_account_id": sender.id,
-                "receiver_account_id": receiver.id, "confidence": txn.confidence,
+                "receiver_account_id": receiver.id, "amount": txn.amount,
+                "sender_bank_id": sender.bank_id, "receiver_bank_id": receiver.bank_id,
+                "timestamp": txn.timestamp.isoformat(), "confidence": txn.confidence,
+                "fraud_probability": txn.fraud_probability, "rule_score": txn.rule_score,
                 "decision": txn.decision, "suspected_swarm_types": suspected_types,
             }))
             if not suspected_types:
