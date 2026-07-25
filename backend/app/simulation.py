@@ -49,6 +49,46 @@ def reset_demo_data() -> dict:
             db.add_all([identity, account, device])
             db.flush()
             db.add(AccountDevice(account_id=account_id, device_id=device.id, last_used_at=now, use_count=10))
+
+        # Seed a deterministic transaction history so the dashboard starts from
+        # persisted SQLite data instead of frontend fixtures.
+        amounts = [340, 800, 1850, 2499, 5000, 9998, 9999, 12000, 25000, 48200, 63500, 74500]
+        risk_profiles = [
+            (0.03, 0.00, 0.02, "allow", [], ["Normal payment pattern"]),
+            (0.05, 0.00, 0.03, "allow", [], ["Known device and normal velocity"]),
+            (0.07, 0.00, 0.04, "allow", [], ["Normal payment pattern"]),
+            (0.09, 0.00, 0.05, "allow", [], ["Known device and normal velocity"]),
+            (0.12, 0.18, 0.15, "allow", [], ["Amount within expected range"]),
+            (0.28, 0.56, 0.62, "review", ["B"], ["Receiver has elevated recent fan-in"]),
+            (0.31, 0.64, 0.68, "review", ["D"], ["Device is shared across multiple accounts"]),
+            (0.16, 0.22, 0.19, "allow", [], ["Normal cross-bank transfer"]),
+            (0.42, 0.72, 0.76, "review", ["A"], ["Identity operates accounts across banks"]),
+            (0.65, 0.92, 0.89, "block", ["B"], ["Receiver has many unique recent senders"]),
+            (0.71, 0.95, 0.92, "block", ["C"], ["Rapid multi-bank layering pattern"]),
+            (0.52, 0.84, 0.82, "review", ["D"], ["Shared device cluster spans multiple banks"]),
+        ]
+        for index, (amount, profile) in enumerate(zip(amounts, risk_profiles, strict=True)):
+            probability, rule_score, confidence, decision, rules, reasons = profile
+            sender_index = index
+            receiver_index = (index * 3 + 7) % 40
+            db.add(Transaction(
+                id=f"TXN-SEED-{index + 1:03d}",
+                sender_account_id=f"ACC-{sender_index:03d}",
+                receiver_account_id=f"ACC-{receiver_index:03d}",
+                amount=amount,
+                timestamp=now - timedelta(minutes=(len(amounts) - index) * 2),
+                channel="UPI",
+                device_fingerprint=f"normal-device-{sender_index:03d}",
+                geo_lat=None,
+                geo_lon=None,
+                fraud_probability=probability,
+                rule_score=rule_score,
+                confidence=confidence,
+                decision=decision,
+                triggered_rules=rules,
+                reasons=reasons,
+                latency_ms=round(3.5 + index * 0.37, 2),
+            ))
     return {"seed": settings.demo_seed, "accounts": 40, "banks": BANKS}
 
 

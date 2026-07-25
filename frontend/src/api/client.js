@@ -28,13 +28,6 @@ export function getHealth() {
   return request('/health');
 }
 
-export function loginUser(username, password) {
-  return request('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify({ username, password }),
-  });
-}
-
 export function evaluateTransaction(payload) {
   return request('/v1/evaluate', {
     method: 'POST',
@@ -47,6 +40,11 @@ export function scoreTransaction(payload) {
     method: 'POST',
     body: JSON.stringify(payload),
   });
+}
+
+export function getTransactions(search = {}) {
+  const params = new URLSearchParams(search);
+  return request(`/transactions${params.size ? `?${params}` : ''}`);
 }
 
 export function resetDemo() {
@@ -87,30 +85,4 @@ export function connectEventStream({
   socket.addEventListener('error', event => onError?.(event));
   socket.addEventListener('close', event => onClose?.(event));
   return socket;
-}
-
-export function connectStream(onMessage, onError) {
-  let socket;
-  try {
-    socket = new WebSocket(WEBSOCKET_URL);
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (onMessage) onMessage(data);
-      } catch (err) {
-        console.error('Failed to parse WebSocket message:', err);
-      }
-    };
-    socket.onerror = (err) => {
-      if (onError) onError(err);
-    };
-  } catch (err) {
-    if (onError) onError(err);
-  }
-
-  return () => {
-    if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
-      socket.close();
-    }
-  };
 }

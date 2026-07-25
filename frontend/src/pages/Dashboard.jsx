@@ -1,11 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { connectStream, injectSwarm } from '../api/client';
-import { transactions as initialTxns } from '../data/mockData';
+import { connectEventStream, getTransactions, injectSwarm } from '../api/client';
 import { ShieldAlert, AlertTriangle, Flame, Activity, Radio } from 'lucide-react';
 import './Dashboard.css';
 
-const formatAmount = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
+const formatAmount = (n) => n == null ? '—' : '₹' + Number(n).toLocaleString('en-IN');
 
 const formatTime = (ts) => {
   if (!ts) return '--:--:--';
@@ -117,27 +116,67 @@ function RechartsDonut({ highCount, medCount, lowCount, total }) {
 
 export default function Dashboard() {
   const [streamData, setStreamData] = useState([]);
+  const [storedTransactions, setStoredTransactions] = useState([]);
   const [selectedTxn, setSelectedTxn] = useState(null);
   const [injecting, setInjecting] = useState(false);
 
-  // Combine initial mock data with live websocket stream
-  useEffect(() => {
-    const cleanup = connectStream((event) => {
-      if (event.type === 'transaction' && event.data) {
-        setStreamData((prev) => [event.data, ...prev].slice(0, 50));
-      }
-    });
-    return cleanup;
+  const addLiveTransaction = useCallback(transaction => {
+    if (!transaction?.id) return;
+    setStreamData(prev => [
+      transaction,
+      ...prev.filter(item => item.id !== transaction.id),
+    ].slice(0, 50));
   }, []);
 
+  // Load persisted history once, then prepend new transactions from the shared event stream.
+  useEffect(() => {
+    let active = true;
+    getTransactions({ limit: 100 })
+      .then(response => {
+        if (active) setStoredTransactions(response.items || []);
+      })
+      .catch(error => console.error('Transaction history failed to load:', error));
+
+    const socket = connectEventStream({
+      onEvent: event => {
+        if (!['transaction_scored', 'swarm_candidate'].includes(event.event_type) || !event.payload) return;
+        const payload = event.payload;
+        addLiveTransaction({
+          id: payload.transaction_id,
+          sender_account_id: payload.sender_account_id,
+          receiver_account_id: payload.receiver_account_id,
+          sender_bank_id: payload.sender_bank_id,
+          receiver_bank_id: payload.receiver_bank_id,
+          amount: payload.amount ?? null,
+          risk_score: Math.round((payload.confidence || 0) * 100),
+          fraud_probability: payload.fraud_probability,
+          rule_score: payload.rule_score,
+          decision: payload.decision,
+          timestamp: payload.timestamp || event.timestamp,
+          suspected_swarm_types: payload.suspected_swarm_types || [],
+          _live: true,
+        });
+      },
+    });
+    return () => {
+      active = false;
+      socket.close();
+    };
+  }, [addLiveTransaction]);
+
   const allTxns = useMemo(() => {
-    return [...streamData, ...initialTxns];
-  }, [streamData]);
+    const liveIds = new Set(streamData.map(transaction => transaction.id));
+    return [
+      ...streamData,
+      ...storedTransactions.filter(transaction => !liveIds.has(transaction.id)),
+    ];
+  }, [streamData, storedTransactions]);
 
   // Score reader
   const getScore = (t) => {
     if (typeof t.risk_score === 'number') return t.risk_score;
     if (typeof t.fraud_score === 'number') return t.fraud_score > 1 ? t.fraud_score : Math.round(t.fraud_score * 100);
+    if (typeof t.confidence === 'number') return Math.round(t.confidence * 100);
     if (typeof t.fraud_probability === 'number') return Math.round(t.fraud_probability * 100);
     return 10;
   };
@@ -166,7 +205,7 @@ export default function Dashboard() {
           map.set(receiverClean, {
             account_id: receiverClean,
             upi: receiver,
-            bank_id: t.bank_receiver || t.receiver_bank || 'Paytm Payments',
+            bank_id: t.receiver_bank_id || t.bank_receiver || t.receiver_bank || 'Unknown bank',
             score: score,
             total_amount: t.amount || 0,
             type: score >= 85 ? 'Layering Mule Ring' : 'Velocity Target',
@@ -179,14 +218,6 @@ export default function Dashboard() {
       }
     });
 
-    if (map.size === 0) {
-      return [
-        { account_id: 'shell_acc_01', upi: 'shell_acc_01@paytm', bank_id: 'Paytm Payments', score: 92, total_amount: 223700, type: 'Layering Mule Ring' },
-        { account_id: 'mule_acc_02',  upi: 'mule_acc_02@icici', bank_id: 'ICICI Bank',      score: 87, total_amount: 145000, type: 'Device Cluster Hub' },
-        { account_id: 'shell_acc_03', upi: 'shell_acc_03@ybl',   bank_id: 'YES Bank',        score: 84, total_amount: 98000,  type: 'Identity Fan-out' },
-        { account_id: 'mule_acc_04',  upi: 'mule_acc_04@kotak', bank_id: 'Kotak Bank',       score: 78, total_amount: 54000,  type: 'Velocity Spike' },
-      ];
-    }
     return Array.from(map.values()).sort((a, b) => b.score - a.score).slice(0, 4);
   }, [allTxns]);
 
@@ -194,17 +225,8 @@ export default function Dashboard() {
     setInjecting(true);
     try {
       await injectSwarm(type, 5);
-    } catch {
-      const mockSwarm = Array.from({ length: 3 }).map((_, i) => ({
-        id: `TXN-SWARM-${Date.now()}-${i}`,
-        sender_upi: `user_suspect_${i + 1}@ybl`,
-        receiver_upi: `shell_mule_${type}@paytm`,
-        amount: Math.floor(Math.random() * 40000) + 20000,
-        risk_score: Math.floor(Math.random() * 15) + 85,
-        decision: 'block',
-        timestamp: new Date().toISOString(),
-      }));
-      setStreamData(prev => [...mockSwarm, ...prev]);
+    } catch (error) {
+      console.error('Live swarm injection failed:', error);
     } finally {
       setTimeout(() => setInjecting(false), 400);
     }
@@ -225,13 +247,13 @@ export default function Dashboard() {
 
         <div className="d-swarm-triggers">
           <span className="d-swarm-lbl">SIMULATE ATTACK:</span>
-          <button className="d-swarm-btn" onClick={() => handleSimulate('identity')} disabled={injecting}>
+          <button className="d-swarm-btn" onClick={() => handleSimulate('A')} disabled={injecting}>
             Identity Swarm
           </button>
-          <button className="d-swarm-btn" onClick={() => handleSimulate('mule')} disabled={injecting}>
+          <button className="d-swarm-btn" onClick={() => handleSimulate('B')} disabled={injecting}>
             Mule Fan-in
           </button>
-          <button className="d-swarm-btn" onClick={() => handleSimulate('layering')} disabled={injecting}>
+          <button className="d-swarm-btn" onClick={() => handleSimulate('C')} disabled={injecting}>
             Layering Ring
           </button>
         </div>
@@ -248,7 +270,7 @@ export default function Dashboard() {
                 <Activity size={16} />
                 <span>LIVE TRANSACTIONS</span>
               </div>
-              <div className="d-badge-count">{totalCount} Monitored</div>
+              <div className="d-badge-count">{streamData.length} Live · {storedTransactions.length} Stored</div>
             </div>
 
             <div className="d-table-wrapper">

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { getUsers } from '../../api/client';
-import { Users as UsersIcon, Building2, MapPin, Calendar, Hash, TrendingUp, RefreshCw, Phone } from 'lucide-react';
+import { Users as UsersIcon, Building2, MapPin, Calendar, TrendingUp, RefreshCw, Phone } from 'lucide-react';
 import './Users.css';
 
 const BANK_LABELS = {
@@ -18,33 +17,24 @@ const BANK_COLORS = {
 const AVATAR_COLORS = ['#5855FF','#10B981','#F59E0B','#EF4444','#8B5CF6','#06B6D4','#EC4899','#84CC16'];
 
 const fmt = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
+const DEMO_USERS = [
+  { id: 'USR-001', name: 'Rahul Sharma', phone: '+91 98765 43210', email: 'rahul@demo.in', account_id: 'ACC-000', bank_id: 'BANK_ALPHA', balance: 50000, city: 'Mumbai', created_at: '2026-07-20T10:00:00Z', txn_count: 3 },
+  { id: 'USR-002', name: 'Priya Patel', phone: '+91 91234 56789', email: 'priya@demo.in', account_id: 'ACC-001', bank_id: 'BANK_BETA', balance: 55000, city: 'Pune', created_at: '2026-07-20T10:00:00Z', txn_count: 0 },
+  { id: 'USR-003', name: 'Vikram Singh', phone: '+91 99887 76655', email: 'vikram@demo.in', account_id: 'ACC-002', bank_id: 'BANK_GAMMA', balance: 60000, city: 'Delhi', created_at: '2026-07-20T10:00:00Z', txn_count: 1 },
+  { id: 'USR-004', name: 'Anita Roy', phone: '+91 88001 12233', email: 'anita@demo.in', account_id: 'ACC-003', bank_id: 'BANK_DELTA', balance: 65000, city: 'Bangalore', created_at: '2026-07-20T10:00:00Z', txn_count: 0 },
+  { id: 'USR-005', name: 'Deepak Nair', phone: '+91 77889 90011', email: 'deepak@demo.in', account_id: 'ACC-004', bank_id: 'BANK_ALPHA', balance: 70000, city: 'Hyderabad', created_at: '2026-07-20T10:00:00Z', txn_count: 0 },
+];
 
 export default function Users() {
   const [users,   setUsers]   = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error,   setError]   = useState('');
   const [search,  setSearch]  = useState('');
   const [expanded, setExpanded] = useState(null);
 
-  const load = async () => {
+  const load = () => {
     setLoading(true);
-    setError('');
-    try {
-      const data = await getUsers();
-      setUsers(data?.users || data || []);
-    } catch (err) {
-      setError(err.message || 'Could not load users (backend endpoint /users not yet implemented)');
-      // Scaffold placeholder data
-      setUsers([
-        { id: 'USR-001', name: 'Rahul Sharma',  phone: '+91 98765 43210', email: 'rahul@demo.in',  account_id: 'ACC-000', bank_id: 'BANK_ALPHA', balance: 50000, city: 'Mumbai',    created_at: new Date().toISOString(), txn_count: 3 },
-        { id: 'USR-002', name: 'Priya Patel',   phone: '+91 91234 56789', email: 'priya@demo.in',  account_id: 'ACC-001', bank_id: 'BANK_BETA',  balance: 55000, city: 'Pune',      created_at: new Date().toISOString(), txn_count: 0 },
-        { id: 'USR-003', name: 'Vikram Singh',  phone: '+91 99887 76655', email: 'vikram@demo.in', account_id: 'ACC-002', bank_id: 'BANK_GAMMA', balance: 60000, city: 'Delhi',     created_at: new Date().toISOString(), txn_count: 1 },
-        { id: 'USR-004', name: 'Anita Roy',     phone: '+91 88001 12233', email: 'anita@demo.in',  account_id: 'ACC-003', bank_id: 'BANK_DELTA', balance: 65000, city: 'Bangalore', created_at: new Date().toISOString(), txn_count: 0 },
-        { id: 'USR-005', name: 'Deepak Nair',   phone: '+91 77889 90011', email: 'deepak@demo.in', account_id: 'ACC-004', bank_id: 'BANK_ALPHA', balance: 70000, city: 'Hyderabad', created_at: new Date().toISOString(), txn_count: 0 },
-      ]);
-    } finally {
-      setLoading(false);
-    }
+    setUsers(DEMO_USERS);
+    setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
@@ -67,7 +57,7 @@ export default function Users() {
             <UsersIcon size={20} />
             Registered Users
           </h1>
-          <p className="usr-page-sub">All sign-up users linked to the detection engine</p>
+          <p className="usr-page-sub">Seeded demo account directory (authentication is outside this MVP)</p>
         </div>
         <button className="usr-refresh-btn" onClick={load} title="Refresh">
           <RefreshCw size={15} className={loading ? 'usr-spin' : ''} />

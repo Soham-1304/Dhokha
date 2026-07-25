@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { loginUser, scoreTransaction } from '../api/client';
+import { scoreTransaction } from '../api/client';
 import ThemeToggle from '../components/ThemeToggle';
 import {
   ShieldAlert, Lock, LogIn, CheckCircle2, AlertTriangle, XCircle,
@@ -8,6 +8,33 @@ import {
 import './UserPaymentFlow.css';
 
 const fmt = (n) => '₹' + Number(n || 0).toLocaleString('en-IN');
+const BANKS = [
+  { id: 'BANK_ALPHA', label: 'HDFC Bank' },
+  { id: 'BANK_BETA', label: 'ICICI Bank' },
+  { id: 'BANK_GAMMA', label: 'State Bank of India' },
+  { id: 'BANK_DELTA', label: 'Axis Bank' },
+];
+
+const stableHash = value => Array.from(value || 'demo')
+  .reduce((hash, char) => ((hash * 31) + char.charCodeAt(0)) >>> 0, 7);
+
+const createDemoUser = ({ name, username, city = 'Mumbai', bankLabel }) => {
+  const bankIndex = bankLabel
+    ? Math.max(0, BANKS.findIndex(bank => bank.label === bankLabel))
+    : stableHash(username) % BANKS.length;
+  const accountIndex = ((stableHash(username) % 10) * BANKS.length) + bankIndex;
+  const bank = BANKS[bankIndex];
+  return {
+    username,
+    name: name || username,
+    account_id: `ACC-${String(accountIndex).padStart(3, '0')}`,
+    bank_id: bank.label,
+    backend_bank_id: bank.id,
+    city,
+  };
+};
+
+const defaultRecipientFor = accountId => accountId === 'ACC-001' ? 'ACC-002' : 'ACC-001';
 
 // Screens
 const SCREEN = { LOGIN: 'login', WALLET: 'wallet', PIN: 'pin', RESULT: 'result' };
@@ -37,7 +64,7 @@ export default function UserPaymentFlow() {
   const [loginLoading, setLoginLoading] = useState(false);
 
   // Pay form state
-  const [recipientInput, setRecipientInput] = useState('');
+  const [recipientInput, setRecipientInput] = useState('ACC-001');
   const [amount, setAmount]                 = useState('');
   const [payError, setPayError]             = useState('');
 
@@ -50,33 +77,19 @@ export default function UserPaymentFlow() {
   const [result, setResult] = useState(null);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
-  const handleLogin = async (e) => {
+  const handleLogin = (e) => {
     e.preventDefault();
     setLoginError('');
     setLoginLoading(true);
-    try {
-      const data = await loginUser(username.trim(), password);
-      setUser(data);
-      setBalance(data.balance);
-      setScreen(SCREEN.WALLET);
-    } catch (err) {
-      // If login fails (e.g. backend offline or unseeded user), construct profile locally
-      const localUser = {
-        username: username.trim(),
-        name: username.trim(),
-        phone: '+91 98765 43210',
-        account_id: 'ACC-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
-        bank_id: 'HDFC Bank',
-        balance: 50000,
-        city: 'Mumbai',
-        recent_transactions: [],
-      };
-      setUser(localUser);
-      setBalance(50000);
-      setScreen(SCREEN.WALLET);
-    } finally {
-      setLoginLoading(false);
-    }
+    const demoUser = createDemoUser({
+      name: username.trim(),
+      username: username.trim(),
+    });
+    setUser(demoUser);
+    setBalance(50000);
+    setRecipientInput(defaultRecipientFor(demoUser.account_id));
+    setScreen(SCREEN.WALLET);
+    setLoginLoading(false);
   };
 
   const handleSignUp = (e) => {
@@ -87,25 +100,29 @@ export default function UserPaymentFlow() {
       return;
     }
     const initialBal = parseFloat(signUpBalance) || 50000;
-    const newAcctId = 'ACC-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-    const newUser = {
-      username: signUpPhone.trim(),
+    const newUser = createDemoUser({
       name: signUpName.trim(),
-      phone: signUpPhone.trim(),
-      account_id: newAcctId,
-      bank_id: signUpBank,
-      balance: initialBal,
+      username: signUpPhone.trim(),
+      bankLabel: signUpBank,
       city: signUpCity || 'Mumbai',
-      recent_transactions: [],
-    };
+    });
     setUser(newUser);
     setBalance(initialBal);
+    setRecipientInput(defaultRecipientFor(newUser.account_id));
     setScreen(SCREEN.WALLET);
   };
 
   const handleProceedToPay = () => {
     setPayError('');
-    if (!recipientInput.trim()) { setPayError('Please enter a recipient account or UPI ID'); return; }
+    const recipient = recipientInput.trim().toUpperCase();
+    if (!/^ACC-0(?:[0-2]\d|3\d)$/.test(recipient)) {
+      setPayError('Use a seeded demo recipient from ACC-000 to ACC-039');
+      return;
+    }
+    if (recipient === user.account_id) {
+      setPayError('Sender and recipient accounts must be different');
+      return;
+    }
     const amt = parseFloat(amount);
     if (!amount || isNaN(amt) || amt <= 0) { setPayError('Enter a valid payment amount'); return; }
     if (amt > balance)                      { setPayError('Insufficient wallet balance'); return; }
@@ -124,15 +141,15 @@ export default function UserPaymentFlow() {
     if (pin.length < 4) { setPinError('Enter 4-digit PIN'); return; }
     setPinLoading(true);
     setPinError('');
-    const target = recipientInput.trim();
+    const target = recipientInput.trim().toUpperCase();
     const amt    = parseFloat(amount);
     const payload = {
-      transaction_id:      'TXN-' + Math.random().toString(36).slice(2, 9).toUpperCase(),
+      transaction_id:      `TXN-WEB-${crypto.randomUUID()}`,
       sender_account_id:   user.account_id,
       receiver_account_id: target,
       amount:              amt,
       timestamp:           new Date().toISOString(),
-      device_fingerprint:  `device-${user.username}-web`,
+      device_fingerprint:  `normal-device-${user.account_id.slice(-3)}`,
       channel:             'UPI',
       geo_lat:             19.076,
       geo_lon:             72.8777,
@@ -142,23 +159,8 @@ export default function UserPaymentFlow() {
       setResult({ ...res, _amount: amt, _target: target });
       if (res.decision === 'allow') setBalance(b => b - amt);
       setScreen(SCREEN.RESULT);
-    } catch {
-      // Graceful local fallback for engine evaluation
-      const simDecision = amt > 25000 ? 'review' : 'allow';
-      setResult({
-        transaction_id:       payload.transaction_id,
-        fraud_probability:    amt > 25000 ? 0.72 : 0.06,
-        rule_score:           amt > 25000 ? 65   : 8,
-        final_confidence:     amt > 25000 ? 0.78 : 0.94,
-        decision:             simDecision,
-        top_reasons:          amt > 25000 ? ['Amount exceeds typical pattern', 'Cross-bank transfer'] : ['Normal payment pattern'],
-        latency_ms:           142,
-        _amount:              amt,
-        _target:              target,
-        _offline:             true,
-      });
-      if (simDecision === 'allow') setBalance(b => b - amt);
-      setScreen(SCREEN.RESULT);
+    } catch (error) {
+      setPinError(error.message || 'The live risk engine could not score this payment');
     } finally {
       setPinLoading(false);
     }
@@ -167,7 +169,7 @@ export default function UserPaymentFlow() {
   const handleNewPayment = () => {
     setResult(null);
     setAmount('');
-    setRecipientInput('');
+    setRecipientInput(defaultRecipientFor(user.account_id));
     setPin('');
     setPayError('');
     setScreen(SCREEN.WALLET);
@@ -233,7 +235,7 @@ export default function UserPaymentFlow() {
                   <span>USER PROFILE REGISTRATION</span>
                 </div>
                 <h2 className="upf-card-title">Create Account</h2>
-                <p className="upf-card-sub">Enter your details to create your wallet profile</p>
+                <p className="upf-card-sub">Demo profile mapped to a seeded account; payments use the live risk engine</p>
 
                 <form onSubmit={handleSignUp} className="upf-form">
                   <div className="upf-field">
@@ -280,7 +282,6 @@ export default function UserPaymentFlow() {
                         <option value="ICICI Bank">ICICI Bank</option>
                         <option value="State Bank of India">State Bank of India</option>
                         <option value="Axis Bank">Axis Bank</option>
-                        <option value="Kotak Mahindra Bank">Kotak Mahindra Bank</option>
                       </select>
                     </div>
                   </div>
@@ -344,7 +345,7 @@ export default function UserPaymentFlow() {
                   <span>SECURE LOGIN</span>
                 </div>
                 <h2 className="upf-card-title">Welcome back</h2>
-                <p className="upf-card-sub">Sign in with your username & password</p>
+                <p className="upf-card-sub">Demo sign-in maps you to a seeded account; credentials stay in this browser</p>
 
                 <form onSubmit={handleLogin} className="upf-form">
                   <div className="upf-field">
@@ -433,7 +434,7 @@ export default function UserPaymentFlow() {
                     <input
                       className="upf-input"
                       type="text"
-                      placeholder="e.g. merchant@paytm or ACC-005"
+                      placeholder="e.g. ACC-005"
                       value={recipientInput}
                       onChange={e => setRecipientInput(e.target.value)}
                     />
@@ -487,6 +488,7 @@ export default function UserPaymentFlow() {
             <h2 className="upf-card-title">Enter PIN</h2>
             <p className="upf-card-sub">
               Paying <strong style={{ color: 'var(--text)' }}>{fmt(amount)}</strong> to <strong style={{ color: 'var(--text)' }}>{recipientInput}</strong>
+              <br />Demo PIN: enter any 4 digits
             </p>
 
             <div className="upf-pin-dots">

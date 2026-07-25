@@ -270,9 +270,20 @@ Important validation:
 - unknown accounts return `404`;
 - repeated transaction IDs return the stored decision with `idempotent: true`.
 
+### `GET /transactions`
+
+Returns scored transactions persisted in SQLite, newest first. The dashboard
+uses this endpoint as its historical data source.
+
+Query parameters are optional `decision` (`allow`, `review`, or `block`),
+`limit` (`1`–`500`), and zero-based `offset`. Items include account and bank
+IDs, amount, timestamp, scores, decision, rules, reasons, and latency.
+
 ### `POST /demo/reset`
 
-Destructive demo-only operation. Clears transactions, alerts, accounts, devices, and cache values, then recreates 40 deterministic accounts across four banks.
+Destructive demo-only operation. Clears transactions, alerts, accounts,
+devices, and cache values, then recreates 40 deterministic accounts and 12
+persisted background transactions across four banks.
 
 ```json
 {
@@ -333,11 +344,8 @@ Event types:
 - `swarm_candidate`;
 - `swarm_confirmed`.
 
-Local URL: `ws://127.0.0.1:8000/stream`.
-
-Public URL: `wss://api.dhokha.bharathperni.dev/stream`.
-
-Nginx terminates TLS and forwards WebSocket upgrade headers to FastAPI. The public stream has been verified end to end by opening WSS, scoring a transaction over HTTPS, and receiving its `transaction_scored` event.
+Transaction events include account/bank IDs, amount, timestamp, scores,
+decision, and suspected swarm types.
 
 ## 9. Demo Runbook
 
@@ -441,7 +449,7 @@ Use `destroy-ec2.sh` after the demo to remove API Gateway, EC2, S3 artifacts, th
 
 ## 15. Current Limitations
 
-- Transaction Scorer is connected to `/health`, `/v1/evaluate`, `/score`, and `/stream`. Graph Explorer is connected to demo reset/injection, alerts, graph neighborhoods, and live swarm events. The separate dashboard landing feed and case-file presentation still use curated demonstration data.
+- Transaction Scorer is connected to `/health`, `/v1/evaluate`, `/score`, and `/stream`. Graph Explorer is connected to demo reset/injection, alerts, graph neighborhoods, and live swarm events. The dashboard transaction feed uses persisted `/transactions` history plus live `/stream` updates. Case-file presentation data remains curated.
 - `/score` and `/v1/evaluate` use separate feature/model pipelines.
 - `geo_jump` is currently fixed to zero.
 - No authentication, rate limiting, audit identity, or bank authorization.
@@ -459,7 +467,7 @@ Use `destroy-ec2.sh` after the demo to remove API Gateway, EC2, S3 artifacts, th
 5. Add idempotency keys and audit records aligned with payment gateways.
 6. Add model versioning, monitoring, drift checks, and calibrated thresholds.
 7. Move WebSocket fan-out to a durable event service when horizontally scaling.
-8. Connect all dashboard surfaces to the live APIs.
+8. Replace the remaining curated case-file presentation data with investigation APIs.
 9. Add CI benchmarks, WebSocket end-to-end tests, and per-swarm model metrics.
 
 ## 17. Troubleshooting

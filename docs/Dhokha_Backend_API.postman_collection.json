@@ -8,7 +8,7 @@
   "variable": [
     {
       "key": "base_url",
-      "value": "https://bq8qc3ysd8.execute-api.ap-south-1.amazonaws.com"
+      "value": "https://api.dhokha.bharathperni.dev"
     },
     {
       "key": "account_id",
@@ -64,6 +64,14 @@
           "raw": "{\"amount\":49900,\"oldbalanceOrg\":49900,\"newbalanceOrig\":0,\"oldbalanceDest\":0,\"newbalanceDest\":0,\"dest_in_degree\":45,\"dest_out_degree\":12,\"dest_pagerank\":0.0024,\"is_merchant\":0}"
         },
         "url": "{{base_url}}/v1/evaluate"
+      }
+    },
+    {
+      "name": "04B - Persisted Transaction History",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/transactions?limit=100&offset=0"
       }
     },
     {

@@ -2,17 +2,20 @@ from contextlib import asynccontextmanager
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 
 from app.cache import cache
 from app.bedrock_model import bedrock_model
-from app.database import Alert, init_db, session_scope
+from app.database import Account, Alert, Transaction, init_db, session_scope
 from app.events import event_hub
 from app.graph import graph_engine
 from app.model import fraud_model
 from app.onnx_model import ModelPayload, ModelResponse, onnx_model
 from app.config import settings
-from app.schemas import InjectSwarmRequest, ScoreRequest, ScoreResponse
+from app.schemas import (
+    InjectSwarmRequest, ScoreRequest, ScoreResponse, TransactionListResponse,
+    TransactionRead,
+)
 from app.scoring import score_transaction
 from app.simulation import ensure_demo_data, generate_swarm, reset_demo_data
 
@@ -139,6 +142,57 @@ def evaluate_model(payload: ModelPayload):
 )
 def score(payload: ScoreRequest, background_tasks: BackgroundTasks):
     return score_transaction(payload, background_tasks)
+
+
+@app.get(
+    "/transactions", response_model=TransactionListResponse, tags=["Investigation"],
+    summary="List scored transactions",
+    description=(
+        "Returns transactions persisted by the scoring pipeline, newest first. "
+        "The result supports pagination and optional allow, review, or block filtering."
+    ),
+    responses={422: {"description": "Invalid decision, limit, or offset."}},
+)
+def transactions(
+    decision: str | None = Query(default=None, pattern="^(allow|review|block)$"),
+    limit: int = Query(default=100, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
+):
+    with session_scope() as db:
+        filters = [Transaction.decision == decision] if decision else []
+        total = db.scalar(
+            select(func.count()).select_from(Transaction).where(*filters)
+        ) or 0
+        transactions = list(db.scalars(
+            select(Transaction)
+            .where(*filters)
+            .order_by(Transaction.timestamp.desc())
+            .offset(offset)
+            .limit(limit)
+        ))
+        account_ids = {
+            account_id
+            for transaction in transactions
+            for account_id in (
+                transaction.sender_account_id,
+                transaction.receiver_account_id,
+            )
+        }
+        banks = {
+            account.id: account.bank_id
+            for account in db.scalars(select(Account).where(Account.id.in_(account_ids)))
+        }
+        items = [{
+            **TransactionRead.model_validate(transaction).model_dump(),
+            "sender_bank_id": banks.get(transaction.sender_account_id),
+            "receiver_bank_id": banks.get(transaction.receiver_account_id),
+        } for transaction in transactions]
+        return {
+            "items": items,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+        }
 
 
 @app.post(
