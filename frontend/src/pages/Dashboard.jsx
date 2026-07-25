@@ -2,16 +2,31 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { connectEventStream, getTransactions, injectSwarm } from '../api/client';
-import { ShieldAlert, AlertTriangle, Flame, Activity, Radio, X, Network, ShieldX } from 'lucide-react';
+import { ShieldAlert, AlertTriangle, Flame, Activity, Radio, X, Network, ShieldX, Zap, CheckCircle2 } from 'lucide-react';
 import './Dashboard.css';
 
 const formatAmount = (n) => n == null ? '—' : '₹' + Number(n).toLocaleString('en-IN');
 
 const formatTime = (ts) => {
   if (!ts) return '--:--:--';
-  return new Date(ts).toLocaleTimeString('en-IN', {
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+  let str = String(ts).trim();
+  if (str.includes(' ') && !str.includes('T')) {
+    str = str.replace(' ', 'T') + 'Z';
+  } else if (!str.endsWith('Z') && !str.includes('+') && !str.includes('z')) {
+    str = str + 'Z';
+  }
+  const date = new Date(str);
+  if (isNaN(date.getTime())) return '--:--:--';
+  return date.toLocaleTimeString('en-IN', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
   });
+};
+
+const SWARM_TITLES = {
+  A: 'Type A — Identity Fan-Out',
+  B: 'Type B — Mule Collector Fan-In',
+  C: 'Type C — Layering Chain',
+  D: 'Type D — Shared Device Cluster',
 };
 
 // Recharts Donut Pie Component — Polished & High-Contrast
@@ -115,7 +130,7 @@ function RechartsDonut({ highCount, medCount, lowCount, total }) {
   );
 }
 
-// Second Stage — Detailed Transaction Intelligence Modal
+// Rich Transaction Intelligence Dossier Modal
 function TransactionDetailModal({ txn, onClose, getScore }) {
   const navigate = useNavigate();
   if (!txn) return null;
@@ -124,11 +139,15 @@ function TransactionDetailModal({ txn, onClose, getScore }) {
   const isHigh = score >= 70 || txn.decision === 'block';
   const isMed  = score >= 35 && score < 70 || txn.decision === 'review';
 
-  const sender = txn.sender_account_id || txn.sender_upi || 'acc_sender@ybl';
-  const receiver = txn.receiver_account_id || txn.receiver_upi || 'shell_acc_01@paytm';
-  const senderBank = txn.bank_sender || txn.sender_bank || 'HDFC Bank';
-  const receiverBank = txn.bank_receiver || txn.receiver_bank || 'Paytm Payments';
+  const sender = txn.sender_account_id || txn.sender_upi || 'ACC-005';
+  const receiver = txn.receiver_account_id || txn.receiver_upi || 'ACC-000';
+  const senderBank = txn.sender_bank_id || txn.bank_sender || 'HDFC Bank';
+  const receiverBank = txn.receiver_bank_id || txn.bank_receiver || 'Paytm Payments';
   const decision = txn.decision ? txn.decision.toUpperCase() : (isHigh ? 'BLOCK' : isMed ? 'REVIEW' : 'ALLOW');
+  
+  const swarmTypes = txn.suspected_swarm_types || txn.triggered_rules || [];
+  const inSwarmRing = swarmTypes.length > 0 || isHigh;
+  const swarmName = swarmTypes.length > 0 ? (SWARM_TITLES[swarmTypes[0]] || `Type ${swarmTypes[0]} Swarm`) : (isHigh ? 'Layering Mule Ring' : null);
 
   return (
     <div className="d-modal-overlay" onClick={onClose}>
@@ -137,7 +156,7 @@ function TransactionDetailModal({ txn, onClose, getScore }) {
         <div className="d-modal-header">
           <div className="d-modal-title">
             <ShieldAlert size={18} className="d-modal-icon" />
-            <span>TRANSACTION DOSSIER • {txn.id || 'TXN-882190'}</span>
+            <span>TRANSACTION DOSSIER • {txn.id || 'TXN-LIVE-882'}</span>
           </div>
           <button className="d-modal-close-btn" onClick={onClose}>
             <X size={16} />
@@ -158,18 +177,42 @@ function TransactionDetailModal({ txn, onClose, getScore }) {
           </div>
         </div>
 
+        {/* Swarm Ring Status Banner */}
+        <div style={{
+          padding: '10px 16px',
+          margin: '0 20px 16px',
+          borderRadius: 8,
+          background: inSwarmRing ? 'rgba(229, 72, 77, 0.12)' : 'rgba(63, 182, 127, 0.12)',
+          border: `1px solid ${inSwarmRing ? 'rgba(229, 72, 77, 0.3)' : 'rgba(63, 182, 127, 0.3)'}`,
+          display: 'flex',
+          alignItems: 'center',
+          justify: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {inSwarmRing ? <AlertTriangle size={16} style={{ color: '#e5484d' }} /> : <CheckCircle2 size={16} style={{ color: '#3fb67f' }} />}
+            <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: inSwarmRing ? '#e5484d' : '#3fb67f' }}>
+              {inSwarmRing ? 'FLAGGED IN FRAUD SWARM RING' : 'STANDALONE TRANSACTION'}
+            </span>
+          </div>
+          {swarmName && (
+            <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', background: 'rgba(229, 72, 77, 0.2)', color: '#e5484d', padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>
+              {swarmName}
+            </span>
+          )}
+        </div>
+
         {/* Telemetry Parameters Grid */}
         <div className="d-modal-grid">
           <div className="d-modal-field">
             <label>SENDER ACCOUNT</label>
             <div className="d-modal-val mono">{sender}</div>
-            <div className="d-modal-subval">{senderBank} • Verified Node</div>
+            <div className="d-modal-subval">{senderBank} • Node</div>
           </div>
 
           <div className="d-modal-field">
             <label>RECIPIENT ACCOUNT</label>
-            <div className="d-modal-val mono" style={{ color: '#e5484d' }}>{receiver}</div>
-            <div className="d-modal-subval">{receiverBank} • Flagged Mule Hub</div>
+            <div className="d-modal-val mono" style={{ color: isHigh ? '#e5484d' : 'inherit' }}>{receiver}</div>
+            <div className="d-modal-subval">{receiverBank} • {isHigh ? 'Flagged Mule Target' : 'Recipient'}</div>
           </div>
 
           <div className="d-modal-field">
@@ -186,14 +229,14 @@ function TransactionDetailModal({ txn, onClose, getScore }) {
 
           <div className="d-modal-field">
             <label>DEVICE HARDWARE HASH</label>
-            <div className="d-modal-val mono">DEV-X7F2-ANDROID</div>
-            <div className="d-modal-subval">Rooted Emulator (8 profiles)</div>
+            <div className="d-modal-val mono">{txn.device_fingerprint || 'DEV-X7F2-ANDROID'}</div>
+            <div className="d-modal-subval">Hardware Fingerprint</div>
           </div>
 
           <div className="d-modal-field">
-            <label>ROUTING IP ENDPOINT</label>
-            <div className="d-modal-val mono">103.47.112.54</div>
-            <div className="d-modal-subval">VPN / Proxy Cluster</div>
+            <label>CHANNEL & LATENCY</label>
+            <div className="d-modal-val mono">{txn.channel || 'UPI'} • {Math.round(txn.latency_ms || 18)}ms</div>
+            <div className="d-modal-subval">LightGBM / ONNX Scoring</div>
           </div>
         </div>
 
@@ -201,32 +244,25 @@ function TransactionDetailModal({ txn, onClose, getScore }) {
         <div className="d-modal-reasons-section">
           <div className="d-modal-section-title">ENGINE RISK SIGNALS (SHAP EXPLANATION)</div>
           <div className="d-modal-reasons-list">
-            <div className="d-reason-item">
-              <span className="d-reason-dot red" />
-              <div className="d-reason-info">
-                <span className="d-reason-name">Fan-In Spurt Spike</span>
-                <span className="d-reason-desc">14 unique senders layered funds in under 30 minutes</span>
+            {txn.top_reasons?.length > 0 ? (
+              txn.top_reasons.map((r, i) => (
+                <div className="d-reason-item" key={i}>
+                  <span className="d-reason-dot red" />
+                  <div className="d-reason-info">
+                    <span className="d-reason-name">RISK SIGNAL #{i + 1}</span>
+                    <span className="d-reason-desc">{r}</span>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="d-reason-item">
+                <span className="d-reason-dot green" />
+                <div className="d-reason-info">
+                  <span className="d-reason-name">NORMAL TRANSACTION</span>
+                  <span className="d-reason-desc">Matches historical sender baseline. Device and IP trusted.</span>
+                </div>
               </div>
-              <span className="d-reason-weight">45%</span>
-            </div>
-
-            <div className="d-reason-item">
-              <span className="d-reason-dot red" />
-              <div className="d-reason-info">
-                <span className="d-reason-name">Hardware Fingerprint Link</span>
-                <span className="d-reason-desc">Device ID DEV-X7F2 seen across 8 distinct UPI wallets</span>
-              </div>
-              <span className="d-reason-weight">35%</span>
-            </div>
-
-            <div className="d-reason-item">
-              <span className="d-reason-dot yellow" />
-              <div className="d-reason-info">
-                <span className="d-reason-name">Velocity Anomaly</span>
-                <span className="d-reason-desc">Outbound transaction velocity exceeded 400% baseline</span>
-              </div>
-              <span className="d-reason-weight">20%</span>
-            </div>
+            )}
           </div>
         </div>
 
@@ -236,7 +272,7 @@ function TransactionDetailModal({ txn, onClose, getScore }) {
             className="d-btn-graph"
             onClick={() => {
               onClose();
-              navigate('/dashboard/graph');
+              navigate('/dashboard/graph', { state: { txn } });
             }}
           >
             <Network size={14} />
@@ -254,6 +290,7 @@ function TransactionDetailModal({ txn, onClose, getScore }) {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [streamData, setStreamData] = useState([]);
   const [storedTransactions, setStoredTransactions] = useState([]);
   const [selectedTxn, setSelectedTxn] = useState(null);
@@ -287,12 +324,15 @@ export default function Dashboard() {
           sender_bank_id: payload.sender_bank_id,
           receiver_bank_id: payload.receiver_bank_id,
           amount: payload.amount ?? null,
-          risk_score: Math.round((payload.confidence || 0) * 100),
+          risk_score: Math.round((payload.confidence || payload.fraud_probability || 0) * 100),
           fraud_probability: payload.fraud_probability,
           rule_score: payload.rule_score,
           decision: payload.decision,
           timestamp: payload.timestamp || event.timestamp,
           suspected_swarm_types: payload.suspected_swarm_types || [],
+          top_reasons: payload.top_reasons || [],
+          device_fingerprint: payload.device_fingerprint,
+          channel: payload.channel,
           _live: true,
         });
       },
@@ -339,13 +379,13 @@ export default function Dashboard() {
     allTxns.forEach(t => {
       const score = getScore(t);
       if (score >= 60 || t.decision === 'block' || t.decision === 'review') {
-        const receiver = t.receiver_account_id || t.receiver_upi || 'shell_acc_01@paytm';
+        const receiver = t.receiver_account_id || t.receiver_upi || 'ACC-000';
         const receiverClean = receiver.split('@')[0];
         if (!map.has(receiverClean)) {
           map.set(receiverClean, {
             account_id: receiverClean,
             upi: receiver,
-            bank_id: t.receiver_bank_id || t.bank_receiver || t.receiver_bank || 'Unknown bank',
+            bank_id: t.receiver_bank_id || t.bank_receiver || 'Paytm Payments',
             score: score,
             total_amount: t.amount || 0,
             type: score >= 85 ? 'Layering Mule Ring' : 'Velocity Target',
@@ -365,7 +405,14 @@ export default function Dashboard() {
   const handleSimulate = async (type) => {
     setInjecting(true);
     try {
-      await injectSwarm(type, 5);
+      const res = await injectSwarm(type, 5);
+      // Fetch latest stored transactions from backend SQLite DB
+      const response = await getTransactions({ limit: 100 });
+      setStoredTransactions(response.items || []);
+      // If scenario returned account IDs, select the first target transaction
+      if (res.decisions?.[0]) {
+        setSelectedTxn(res.decisions[0]);
+      }
     } catch (error) {
       console.error('Live swarm injection failed:', error);
     } finally {
@@ -389,13 +436,16 @@ export default function Dashboard() {
         <div className="d-swarm-triggers">
           <span className="d-swarm-lbl">SIMULATE ATTACK:</span>
           <button className="d-swarm-btn" onClick={() => handleSimulate('A')} disabled={injecting}>
-            Identity Swarm
+            A: Fan-Out
           </button>
           <button className="d-swarm-btn" onClick={() => handleSimulate('B')} disabled={injecting}>
-            Mule Fan-in
+            B: Mule Fan-In
           </button>
           <button className="d-swarm-btn" onClick={() => handleSimulate('C')} disabled={injecting}>
-            Layering Ring
+            C: Layering Ring
+          </button>
+          <button className="d-swarm-btn" onClick={() => handleSimulate('D')} disabled={injecting}>
+            D: Device Cluster
           </button>
         </div>
       </header>
@@ -430,7 +480,7 @@ export default function Dashboard() {
                     const isHigh = score >= 70 || t.decision === 'block';
                     const isMed  = score >= 35 && score < 70 || t.decision === 'review';
 
-                    const sender = t.sender_account_id || t.sender_upi || 'acc_sender';
+                    const sender = t.sender_account_id || t.sender_upi || 'ACC-005';
                     const senderClean = sender.split('@')[0];
                     const isSel = selectedTxn?.id === t.id;
 
@@ -502,7 +552,7 @@ export default function Dashboard() {
                 <div
                   key={acc.account_id}
                   className="d-fraud-item-card"
-                  onClick={() => setSelectedTxn(acc.rawTxn || { id: acc.account_id, amount: acc.total_amount, sender_upi: 'user_mule@ybl', receiver_upi: acc.upi, risk_score: acc.score, decision: 'block' })}
+                  onClick={() => setSelectedTxn(acc.rawTxn || { id: acc.account_id, amount: acc.total_amount, sender_account_id: 'ACC-005', receiver_account_id: acc.account_id, risk_score: acc.score, decision: 'block', suspected_swarm_types: ['B'] })}
                   style={{ cursor: 'pointer' }}
                 >
                   <div className="d-fraud-item-left">

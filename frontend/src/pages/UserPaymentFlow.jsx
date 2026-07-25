@@ -4,7 +4,7 @@ import { scoreTransaction } from '../api/client';
 import ThemeToggle from '../components/ThemeToggle';
 import {
   ShieldAlert, Lock, LogIn, CheckCircle2, AlertTriangle, XCircle,
-  ArrowLeft, Send, User, Building2, Smartphone, Eye, EyeOff, MapPin, CreditCard, Home
+  ArrowLeft, Send, User, Building2, Smartphone, Eye, EyeOff, MapPin, CreditCard, Home, Zap
 } from 'lucide-react';
 import './UserPaymentFlow.css';
 
@@ -16,20 +16,71 @@ const BANKS = [
   { id: 'BANK_DELTA', label: 'Axis Bank' },
 ];
 
+// Seeded recipient presets from backend SQLite DB (ACC-000 to ACC-039)
+const RECIPIENT_PRESETS = [
+  { id: 'ACC-001', label: 'Priya (ACC-001)', desc: 'ICICI • Normal' },
+  { id: 'ACC-002', label: 'Amit (ACC-002)', desc: 'SBI • Normal' },
+  { id: 'ACC-000', label: 'Mule Hub (ACC-000)', desc: 'Paytm • Test Fraud' },
+  { id: 'ACC-010', label: 'Sneha (ACC-010)', desc: 'Axis • Normal' },
+];
+
+// Seeded Demo Account Aliases
+const SEEDED_DEMO_ACCOUNTS = [
+  { username: 'acc-001', name: 'Priya Sharma', account_id: 'ACC-001', bank_id: 'ICICI Bank' },
+  { username: 'acc-002', name: 'Amit Verma', account_id: 'ACC-002', bank_id: 'State Bank of India' },
+  { username: 'acc-005', name: 'Vikram Rao', account_id: 'ACC-005', bank_id: 'HDFC Bank' },
+  { username: 'acc-010', name: 'Sneha Patel', account_id: 'ACC-010', bank_id: 'Axis Bank' },
+  { username: 'rahul', name: 'Rahul Sharma', account_id: 'ACC-003', bank_id: 'HDFC Bank' },
+  { username: 'priya', name: 'Priya Sharma', account_id: 'ACC-001', bank_id: 'ICICI Bank' },
+  { username: 'amit', name: 'Amit Verma', account_id: 'ACC-002', bank_id: 'State Bank of India' },
+  { username: 'vikram', name: 'Vikram Rao', account_id: 'ACC-005', bank_id: 'HDFC Bank' },
+];
+
+// Local Storage Registered User Storage Helper
+const getStoredProfiles = () => {
+  try {
+    const raw = localStorage.getItem('dhokha_user_profiles');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveProfile = (profile) => {
+  try {
+    const list = getStoredProfiles();
+    const filtered = list.filter(p => p.username.toLowerCase() !== profile.username.toLowerCase() && p.name.toLowerCase() !== profile.name.toLowerCase());
+    localStorage.setItem('dhokha_user_profiles', JSON.stringify([profile, ...filtered]));
+  } catch {
+    // Ignore storage quota errors
+  }
+};
+
 const stableHash = value => Array.from(value || 'demo')
   .reduce((hash, char) => ((hash * 31) + char.charCodeAt(0)) >>> 0, 7);
 
-const createDemoUser = ({ name, username, city = 'Mumbai', bankLabel }) => {
-  const bankIndex = bankLabel
-    ? Math.max(0, BANKS.findIndex(bank => bank.label === bankLabel))
-    : stableHash(username) % BANKS.length;
-  const accountIndex = ((stableHash(username) % 10) * BANKS.length) + bankIndex;
-  const bank = BANKS[bankIndex];
+const createDemoUser = ({ name, username, city = 'Mumbai', bankLabel, customAccountId }) => {
+  const trimmed = (customAccountId || username || '').trim().toUpperCase();
+  let accountId;
+  if (/^ACC-0(?:[0-3]\d|\d)$/.test(trimmed)) {
+    const num = parseInt(trimmed.slice(-3), 10);
+    accountId = `ACC-${String(num).padStart(3, '0')}`;
+  } else {
+    const bankIndex = bankLabel
+      ? Math.max(0, BANKS.findIndex(bank => bank.label === bankLabel))
+      : stableHash(username) % BANKS.length;
+    const accountIndex = ((stableHash(username) % 10) * BANKS.length) + bankIndex;
+    accountId = `ACC-${String(accountIndex).padStart(3, '0')}`;
+  }
+
+  const idx = parseInt(accountId.slice(-3), 10) || 0;
+  const bank = BANKS[idx % BANKS.length];
+
   return {
-    username,
-    name: name || username,
-    account_id: `ACC-${String(accountIndex).padStart(3, '0')}`,
-    bank_id: bank.label,
+    username: username.trim(),
+    name: name.trim() || username.trim(),
+    account_id: accountId,
+    bank_id: bankLabel || bank.label,
     backend_bank_id: bank.id,
     city,
   };
@@ -62,6 +113,7 @@ export default function UserPaymentFlow() {
   // Sign Up form state
   const [signUpName, setSignUpName]         = useState('');
   const [signUpPhone, setSignUpPhone]       = useState('');
+  const [signUpAccount, setSignUpAccount]   = useState('');
   const [signUpBank, setSignUpBank]         = useState('HDFC Bank');
   const [signUpBalance, setSignUpBalance]   = useState(50000);
   const [signUpPassword, setSignUpPassword] = useState('');
@@ -93,13 +145,54 @@ export default function UserPaymentFlow() {
     e.preventDefault();
     setLoginError('');
     setLoginLoading(true);
-    const demoUser = createDemoUser({
-      name: username.trim(),
-      username: username.trim(),
-    });
-    setUser(demoUser);
+
+    const inputClean = username.trim();
+    if (!inputClean || !password) {
+      setLoginError('Please enter both username and password');
+      setLoginLoading(false);
+      return;
+    }
+
+    const inputLower = inputClean.toLowerCase();
+
+    // 1. Search user registered accounts saved in localStorage
+    const storedList = getStoredProfiles();
+    let found = storedList.find(p =>
+      p.username.toLowerCase() === inputLower ||
+      p.name.toLowerCase() === inputLower ||
+      p.account_id.toLowerCase() === inputLower
+    );
+
+    // 2. Search seeded demo account aliases
+    if (!found) {
+      found = SEEDED_DEMO_ACCOUNTS.find(p =>
+        p.username.toLowerCase() === inputLower ||
+        p.name.toLowerCase() === inputLower ||
+        p.account_id.toLowerCase() === inputLower
+      );
+    }
+
+    // 3. Search valid baseline seeded account ID format like ACC-015
+    if (!found && /^ACC-0\d{2}$/i.test(inputClean)) {
+      const num = parseInt(inputClean.slice(-3), 10);
+      if (num < 40) {
+        found = createDemoUser({
+          name: `User ${inputClean.toUpperCase()}`,
+          username: inputClean.toLowerCase(),
+          customAccountId: inputClean.toUpperCase(),
+        });
+      }
+    }
+
+    if (!found) {
+      setLoginError(`Account '${inputClean}' is not registered. Please click 'CREATE ACCOUNT' above to register a new profile.`);
+      setLoginLoading(false);
+      return;
+    }
+
+    setUser(found);
     setBalance(50000);
-    setRecipientInput(defaultRecipientFor(demoUser.account_id));
+    setRecipientInput(defaultRecipientFor(found.account_id));
     setScreen(SCREEN.WALLET);
     setLoginLoading(false);
   };
@@ -107,17 +200,32 @@ export default function UserPaymentFlow() {
   const handleSignUp = (e) => {
     e.preventDefault();
     setSignUpError('');
-    if (!signUpName.trim() || !signUpPhone.trim() || !signUpPassword) {
+
+    const cleanName = signUpName.trim();
+    const cleanPhone = signUpPhone.trim();
+    if (!cleanName || !cleanPhone || !signUpPassword) {
       setSignUpError('Please fill in all required fields');
       return;
     }
+
+    // Check duplicate username or name check
+    const storedList = getStoredProfiles();
+    const isDuplicate = storedList.some(p => p.username.toLowerCase() === cleanPhone.toLowerCase() || p.name.toLowerCase() === cleanName.toLowerCase());
+    if (isDuplicate) {
+      setSignUpError(`Account '${cleanName}' or phone number '${cleanPhone}' is already registered. Please sign in.`);
+      return;
+    }
+
     const initialBal = parseFloat(signUpBalance) || 50000;
     const newUser = createDemoUser({
-      name: signUpName.trim(),
-      username: signUpPhone.trim(),
+      name: cleanName,
+      username: cleanPhone,
       bankLabel: signUpBank,
       city: signUpCity || 'Mumbai',
+      customAccountId: signUpAccount.trim(),
     });
+
+    saveProfile(newUser);
     setUser(newUser);
     setBalance(initialBal);
     setRecipientInput(defaultRecipientFor(newUser.account_id));
@@ -127,8 +235,9 @@ export default function UserPaymentFlow() {
   const handleProceedToPay = () => {
     setPayError('');
     const recipient = recipientInput.trim().toUpperCase();
-    if (!/^ACC-0(?:[0-2]\d|3\d)$/.test(recipient)) {
-      setPayError('Use a seeded demo recipient from ACC-000 to ACC-039');
+    const isSeeded = /^ACC-0\d{2}$/.test(recipient) && parseInt(recipient.slice(-3), 10) < 40;
+    if (!isSeeded) {
+      setPayError('Recipient must be a seeded database account (ACC-000 to ACC-039)');
       return;
     }
     if (recipient === user.account_id) {
@@ -252,7 +361,7 @@ export default function UserPaymentFlow() {
                   <span>USER PROFILE REGISTRATION</span>
                 </div>
                 <h2 className="upf-card-title">Create Account</h2>
-                <p className="upf-card-sub">Demo profile mapped to a seeded account; payments use the live risk engine</p>
+                <p className="upf-card-sub">Create your profile; mapped directly to seeded backend database accounts</p>
 
                 <form onSubmit={handleSignUp} className="upf-form">
                   <div className="upf-field">
@@ -281,6 +390,20 @@ export default function UserPaymentFlow() {
                         value={signUpPhone}
                         onChange={e => setSignUpPhone(e.target.value)}
                         required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="upf-field">
+                    <label className="upf-label">Account ID (Optional)</label>
+                    <div className="upf-input-wrap">
+                      <CreditCard size={15} className="upf-input-icon" />
+                      <input
+                        className="upf-input"
+                        type="text"
+                        placeholder="e.g. ACC-005 (Leave blank to auto-assign)"
+                        value={signUpAccount}
+                        onChange={e => setSignUpAccount(e.target.value)}
                       />
                     </div>
                   </div>
@@ -362,17 +485,17 @@ export default function UserPaymentFlow() {
                   <span>SECURE LOGIN</span>
                 </div>
                 <h2 className="upf-card-title">Welcome back</h2>
-                <p className="upf-card-sub">Demo sign-in maps you to a seeded account; credentials stay in this browser</p>
+                <p className="upf-card-sub">Sign in with registered name, phone, or seeded ID (e.g. ACC-005)</p>
 
                 <form onSubmit={handleLogin} className="upf-form">
                   <div className="upf-field">
-                    <label className="upf-label">Username / Phone</label>
+                    <label className="upf-label">Username / Phone / Account ID</label>
                     <div className="upf-input-wrap">
                       <User size={15} className="upf-input-icon" />
                       <input
                         className="upf-input"
                         type="text"
-                        placeholder="e.g. rahul"
+                        placeholder="e.g. ACC-005 or rahul"
                         value={username}
                         onChange={e => setUsername(e.target.value)}
                         autoComplete="username"
@@ -451,10 +574,25 @@ export default function UserPaymentFlow() {
                     <input
                       className="upf-input"
                       type="text"
-                      placeholder="e.g. ACC-005"
+                      placeholder="e.g. ACC-001"
                       value={recipientInput}
                       onChange={e => setRecipientInput(e.target.value)}
                     />
+                  </div>
+
+                  {/* Seeded Recipient Quick Selectors */}
+                  <div className="upf-quick-chips" style={{ marginTop: 8 }}>
+                    {RECIPIENT_PRESETS.filter(p => p.id !== user.account_id).map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className={`upf-chip-btn ${recipientInput === p.id ? 'active' : ''}`}
+                        onClick={() => setRecipientInput(p.id)}
+                        title={p.desc}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -473,14 +611,14 @@ export default function UserPaymentFlow() {
 
                 {/* Quick amount chips */}
                 <div className="upf-quick-chips">
-                  {['500', '1000', '5000', '10000', '25000'].map(val => (
+                  {['500', '1000', '5000', '10000', '49900'].map(val => (
                     <button
                       key={val}
                       type="button"
                       className="upf-chip-btn"
                       onClick={() => setAmount(val)}
                     >
-                      ₹{parseInt(val).toLocaleString('en-IN')}
+                      {val === '49900' ? '⚡ ₹49,900 (Fraud Test)' : `₹${parseInt(val).toLocaleString('en-IN')}`}
                     </button>
                   ))}
                 </div>
@@ -580,7 +718,7 @@ export default function UserPaymentFlow() {
               </div>
               <div className="upf-detail-row">
                 <span>Engine Latency</span>
-                <span className="upf-detail-val">{result.latency_ms || 120}ms</span>
+                <span className="upf-detail-val">{Math.round(result.latency_ms || 120)}ms</span>
               </div>
             </div>
 

@@ -1,38 +1,39 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { scoreTransaction } from '../api/client';
 import './Scorer.css';
 
+// Presets using valid seeded database accounts (ACC-000 to ACC-039)
 const PRESETS = [
   {
-    label: '🔴 Suspicious — Mule Ring',
+    label: '🔴 Suspicious — Mule Ring (High Risk)',
     data: {
-      sender_upi: 'vikram.rao@icici',
-      receiver_upi: 'shell_acc_01@paytm',
+      sender_upi: 'ACC-005',
+      receiver_upi: 'ACC-000',
       amount: '49900',
-      device_id: 'DEV-X7F2-ANDROID',
-      bank: 'ICICI Bank',
+      device_id: 'normal-device-005',
+      bank: 'HDFC Bank',
       city: 'Kolkata',
     },
   },
   {
-    label: '🟡 Moderate — Threshold Dodge',
+    label: '🟡 Moderate — Threshold Dodge (Medium Risk)',
     data: {
-      sender_upi: 'deepak.raj@ybl',
-      receiver_upi: 'mule_acc_02@icici',
+      sender_upi: 'ACC-002',
+      receiver_upi: 'ACC-000',
       amount: '9999',
-      device_id: 'DEV-X7F2-ANDROID',
-      bank: 'HDFC Bank',
+      device_id: 'normal-device-002',
+      bank: 'State Bank of India',
       city: 'Hyderabad',
     },
   },
   {
-    label: '🟢 Safe — Normal Payment',
+    label: '🟢 Safe — Normal Payment (Low Risk)',
     data: {
-      sender_upi: 'sneha.patel@ybl',
-      receiver_upi: 'genuine_shop@razorpay',
-      amount: '2499',
-      device_id: 'DEV-K2L8-IPHONE',
-      bank: 'Axis Bank',
+      sender_upi: 'ACC-001',
+      receiver_upi: 'ACC-002',
+      amount: '500',
+      device_id: 'normal-device-001',
+      bank: 'ICICI Bank',
       city: 'Bangalore',
     },
   },
@@ -84,18 +85,13 @@ export default function Scorer() {
 
   // Build the backend payload from form data
   const buildPayload = (data) => ({
-    sender_account_id: data.sender_upi,
-    receiver_account_id: data.receiver_upi,
+    transaction_id: `TXN-SCORER-${crypto.randomUUID()}`,
+    sender_account_id: data.sender_upi.trim().toUpperCase(),
+    receiver_account_id: data.receiver_upi.trim().toUpperCase(),
     amount: parseFloat(data.amount),
-    device_fingerprint: data.device_id,
+    device_fingerprint: data.device_id.trim(),
     channel: 'UPI',
   });
-
-  // Score on mount with first preset
-  useEffect(() => {
-    handleScore(PRESETS[0].data);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -107,19 +103,20 @@ export default function Scorer() {
     setApiError('');
   };
 
-  const handleScore = async (overrideData) => {
-    const data = overrideData || formData;
+  const handleScore = async () => {
     setIsScoring(true);
     setResult(null);
     setApiError('');
 
     try {
-      const res = await scoreTransaction(buildPayload(data));
-      // Map backend response to display format
-      const riskScore = Math.round(res.fraud_probability * 100);
+      const res = await scoreTransaction(buildPayload(formData));
+      // Prioritize final_confidence (which combines ML probability + swarm rules)
+      const confidenceVal = typeof res.final_confidence === 'number' ? res.final_confidence : (res.fraud_probability || 0);
+      const riskScore = Math.round(confidenceVal * 100);
+
       setResult({
         risk_score: riskScore,
-        confidence: res.final_confidence,
+        confidence: confidenceVal,
         latency_ms: Math.round(res.latency_ms),
         decision: res.decision,
         suspected_swarm_types: res.suspected_swarm_types || [],
@@ -149,7 +146,7 @@ export default function Scorer() {
 
       <div className="page-content">
         <div className="scorer-layout">
-          {/* Left: Form */}
+          {/* Left: Form & Model Parameters */}
           <div className="scorer-form-panel">
             <div className="card">
               <div className="card-header">
@@ -171,12 +168,12 @@ export default function Scorer() {
 
               <div className="form-grid" ref={formRef}>
                 <div className="form-group">
-                  <label>Sender UPI ID</label>
-                  <input value={formData.sender_upi} onChange={e => handleChange('sender_upi', e.target.value)} placeholder="user@bank" />
+                  <label>Sender Account / UPI ID</label>
+                  <input value={formData.sender_upi} onChange={e => handleChange('sender_upi', e.target.value)} placeholder="ACC-001" />
                 </div>
                 <div className="form-group">
-                  <label>Receiver UPI ID</label>
-                  <input value={formData.receiver_upi} onChange={e => handleChange('receiver_upi', e.target.value)} placeholder="receiver@bank" />
+                  <label>Receiver Account / UPI ID</label>
+                  <input value={formData.receiver_upi} onChange={e => handleChange('receiver_upi', e.target.value)} placeholder="ACC-000" />
                 </div>
                 <div className="form-group">
                   <label>Amount (₹)</label>
@@ -188,7 +185,7 @@ export default function Scorer() {
                 </div>
                 <div className="form-group">
                   <label>Device ID</label>
-                  <input value={formData.device_id} onChange={e => handleChange('device_id', e.target.value)} placeholder="DEV-XXXX" />
+                  <input value={formData.device_id} onChange={e => handleChange('device_id', e.target.value)} placeholder="DEV-001" />
                 </div>
                 <div className="form-group">
                   <label>City</label>
@@ -196,15 +193,43 @@ export default function Scorer() {
                 </div>
               </div>
 
-              <button className={`btn btn-primary score-btn ${isScoring ? 'scoring' : ''}`} onClick={() => handleScore()} disabled={isScoring}>
+              <button className={`btn btn-primary score-btn ${isScoring ? 'scoring' : ''}`} onClick={handleScore} disabled={isScoring}>
                 {isScoring ? (
                   <>
-                    <span className="spinner" /> Scoring...
+                    <span className="spinner" /> Scoring via Backend API...
                   </>
                 ) : (
                   <>⚡ Score Transaction</>
                 )}
               </button>
+            </div>
+
+            {/* Model Architecture & Features Card */}
+            <div className="card" style={{ marginTop: 16 }}>
+              <div className="card-header">
+                <span className="card-title">ONNX ML & Risk Engine Parameters</span>
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                <p style={{ marginBottom: 8 }}>
+                  <strong style={{ color: 'var(--text)' }}>Stage-1 Classifier:</strong> PaySim-trained LightGBM exported to ONNX format. Evaluates transaction velocity, balance changes, and graph topology.
+                </p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+                  <div style={{ background: 'var(--surface-quiet)', padding: 8, borderRadius: 6, border: '1px solid var(--border)' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--brass)', marginBottom: 4 }}>ML FEATURES</div>
+                    <div>• amount_zscore</div>
+                    <div>• oldbalanceOrg/Dest</div>
+                    <div>• dest_in_degree</div>
+                    <div>• dest_pagerank</div>
+                  </div>
+                  <div style={{ background: 'var(--surface-quiet)', padding: 8, borderRadius: 6, border: '1px solid var(--border)' }}>
+                    <div style={{ fontWeight: 600, color: 'var(--string)', marginBottom: 4 }}>SWARM RULES</div>
+                    <div>• device_account_count</div>
+                    <div>• device_bank_count</div>
+                    <div>• fan_in (&ge;4 in 5m)</div>
+                    <div>• closes_cycle</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -217,7 +242,7 @@ export default function Scorer() {
                   <div style={{ color: 'var(--string)', fontWeight: 600, marginBottom: '8px' }}>Scoring API Error</div>
                   <div style={{ color: 'var(--text-dim)', fontSize: '13px' }}>{apiError}</div>
                   <div style={{ color: 'var(--text-dim)', fontSize: '11px', marginTop: '12px' }}>
-                    Make sure the backend is running at the configured API URL
+                    Ensure sender and receiver exist in backend seeded DB (ACC-000 to ACC-039+)
                   </div>
                 </div>
               </div>
@@ -226,8 +251,8 @@ export default function Scorer() {
             {!result && !isScoring && !apiError && (
               <div className="empty-result card">
                 <div className="empty-icon">🔍</div>
-                <div className="empty-text">Submit a transaction to see<br />real-time fraud scoring</div>
-                <div className="empty-sub">Try different presets to see how<br />the engine responds</div>
+                <div className="empty-text">Submit a transaction to hit the backend API</div>
+                <div className="empty-sub">Select a preset or edit form values, then click Score Transaction to get real-time risk scoring</div>
               </div>
             )}
 
@@ -238,7 +263,7 @@ export default function Scorer() {
                   <div className="scan-line d2" />
                   <div className="scan-line d3" />
                 </div>
-                <div className="scoring-text">Scoring via backend API...</div>
+                <div className="scoring-text">Calling POST /score...</div>
               </div>
             )}
 
@@ -249,11 +274,11 @@ export default function Scorer() {
                   <div className="result-meta">
                     <div className={`risk-badge ${riskClass}`} style={{ fontSize: 12, padding: '5px 14px' }}>
                       <span className="dot" />
-                      {result.decision || riskClass.toUpperCase()}
+                      {result.decision?.toUpperCase() || riskClass.toUpperCase()}
                     </div>
                     <div className="result-confidence">
                       <span className="mono" style={{ fontSize: 11, color: 'var(--text-dim)' }}>CONFIDENCE</span>
-                      <span className="mono" style={{ fontSize: 22, fontWeight: 700 }}>{Math.round(result.confidence * 100)}%</span>
+                      <span className="mono" style={{ fontSize: 22, fontWeight: 700 }}>{Math.round((result.confidence || (result.risk_score / 100)) * 100)}%</span>
                     </div>
                     <div className="latency-badge">
                       <span className="lightning">⚡</span>
@@ -271,16 +296,25 @@ export default function Scorer() {
 
                 <div className="result-reasons">
                   <div className="card-title" style={{ marginBottom: 12 }}>EXPLAINABILITY — WHY WAS THIS FLAGGED?</div>
-                  {result.reasons.map((r, i) => (
-                    <div className="reason-item" key={i}>
-                      <div className="reason-icon">
-                        {riskClass === 'low' ? '✅' : '⚠️'}
+                  {result.reasons.length > 0 ? (
+                    result.reasons.map((r, i) => (
+                      <div className="reason-item" key={i}>
+                        <div className="reason-icon">
+                          {riskClass === 'low' ? '✅' : '⚠️'}
+                        </div>
+                        <div className="reason-text">
+                          <div className="reason-detail">{r.detail}</div>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="reason-item">
+                      <div className="reason-icon">✅</div>
                       <div className="reason-text">
-                        <div className="reason-detail">{r.detail}</div>
+                        <div className="reason-detail">Normal baseline payment. No graph anomalies detected.</div>
                       </div>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             )}

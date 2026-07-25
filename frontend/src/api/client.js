@@ -1,8 +1,13 @@
 const configuredBaseUrl = import.meta.env.VITE_API_URL?.trim();
 export const API_BASE_URL = (configuredBaseUrl || '/api').replace(/\/$/, '');
+
 const configuredWebSocketUrl = import.meta.env.VITE_WS_URL?.trim();
-export const WEBSOCKET_URL = configuredWebSocketUrl
-  || 'wss://api.dhokha.bharathperni.dev/stream';
+const defaultWsHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? '127.0.0.1:8000'
+  : 'api.dhokha.bharathperni.dev';
+const defaultWsProto = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+
+export const WEBSOCKET_URL = configuredWebSocketUrl || `${defaultWsProto}//${defaultWsHost}/stream`;
 
 async function request(path, options = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -28,6 +33,13 @@ export function getHealth() {
   return request('/health');
 }
 
+export function loginUser(username, password) {
+  return request('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password }),
+  });
+}
+
 export function evaluateTransaction(payload) {
   return request('/v1/evaluate', {
     method: 'POST',
@@ -42,11 +54,6 @@ export function scoreTransaction(payload) {
   });
 }
 
-export function getTransactions(search = {}) {
-  const params = new URLSearchParams(search);
-  return request(`/transactions${params.size ? `?${params}` : ''}`);
-}
-
 export function resetDemo() {
   return request('/demo/reset', { method: 'POST' });
 }
@@ -56,6 +63,11 @@ export function injectSwarm(swarmType, size = 5) {
     method: 'POST',
     body: JSON.stringify({ swarm_type: swarmType, size }),
   });
+}
+
+export function getTransactions(search = {}) {
+  const params = new URLSearchParams(search);
+  return request(`/transactions${params.size ? `?${params}` : ''}`);
 }
 
 export function getAlerts(search = {}) {
@@ -85,4 +97,30 @@ export function connectEventStream({
   socket.addEventListener('error', event => onError?.(event));
   socket.addEventListener('close', event => onClose?.(event));
   return socket;
+}
+
+export function connectStream(onMessage, onError) {
+  let socket;
+  try {
+    socket = new WebSocket(WEBSOCKET_URL);
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (onMessage) onMessage(data);
+      } catch (err) {
+        console.error('Failed to parse WebSocket message:', err);
+      }
+    };
+    socket.onerror = (err) => {
+      if (onError) onError(err);
+    };
+  } catch (err) {
+    if (onError) onError(err);
+  }
+
+  return () => {
+    if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
+      socket.close();
+    }
+  };
 }

@@ -106,7 +106,7 @@
 }
 
 .workspace-queue-column.dossier-sheet {
-  width: 200px;
+  width: 300px;
   flex-shrink: 0;
 }
 
@@ -118,7 +118,7 @@
 }
 
 .workspace-panel-column.dossier-sheet {
-  width: 260px;
+  width: 280px;
   flex-shrink: 0;
 }
 
