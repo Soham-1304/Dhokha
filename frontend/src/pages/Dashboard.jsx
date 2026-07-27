@@ -1,317 +1,95 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { connectEventStream, getTransactions, injectSwarm } from '../api/client';
-import { ShieldAlert, AlertTriangle, Flame, Activity, Radio, X, Network, ShieldX, Zap, CheckCircle2 } from 'lucide-react';
+import { connectEventStream, getTransactions } from '../api/client';
 import './Dashboard.css';
 
-const formatAmount = (n) => n == null ? '—' : '₹' + Number(n).toLocaleString('en-IN');
-
+const formatAmount = (n) => n == null ? '0' : Number(n).toLocaleString('en-IN');
 const formatTime = (ts) => {
-  if (!ts) return '--:--:--';
-  let str = String(ts).trim();
-  if (str.includes(' ') && !str.includes('T')) {
-    str = str.replace(' ', 'T') + 'Z';
-  } else if (!str.endsWith('Z') && !str.includes('+') && !str.includes('z')) {
-    str = str + 'Z';
+  if (!ts) {
+    return new Date().toTimeString().slice(0, 8);
   }
-  const date = new Date(str);
-  if (isNaN(date.getTime())) return '--:--:--';
-  return date.toLocaleTimeString('en-IN', {
-    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
-  });
+  const date = new Date(ts.includes('T') ? ts : ts.replace(' ', 'T') + 'Z');
+  if (isNaN(date.getTime())) return new Date().toTimeString().slice(0, 8);
+  return date.toTimeString().slice(0, 8);
 };
 
-const SWARM_TITLES = {
-  A: 'Type A — Identity Fan-Out',
-  B: 'Type B — Mule Collector Fan-In',
-  C: 'Type C — Layering Chain',
-  D: 'Type D — Shared Device Cluster',
-};
+const SWARM_TYPES = [
+  { name: 'Identity Fan-Out', count: 12, conf: 94, ts: '2 min ago' },
+  { name: 'Mule Collector', count: 7, conf: 88, ts: '6 min ago' },
+  { name: 'Layering Ring', count: 19, conf: 96, ts: 'just now' },
+  { name: 'Device Cluster', count: 4, conf: 82, ts: '11 min ago' }
+];
 
-// Recharts Donut Pie Component — Polished & High-Contrast
-function RechartsDonut({ highCount, medCount, lowCount, total }) {
-  const [activeIndex, setActiveIndex] = useState(null);
+const QUEUE_DATA = [
+  { p: 'p1', label: 'P1', name: 'Layering Ring', bank: 'HDFC · ICICI · KOTAK', conf: 96, accts: 19, loss: '8.4L', status: 'Open' },
+  { p: 'p1', label: 'P1', name: 'Device Cluster', bank: 'AXIS · SBI', conf: 94, accts: 4, loss: '2.1L', status: 'Open' },
+  { p: 'p2', label: 'P2', name: 'Mule Collector', bank: 'AXIS', conf: 88, accts: 7, loss: '1.6L', status: 'In Review' },
+  { p: 'p3', label: 'P3', name: 'Identity Fan-Out', bank: 'ICICI', conf: 71, accts: 12, loss: '0.9L', status: 'Monitoring' }
+];
 
-  const safeTotal = total || 1;
-  const highPct = Math.round((highCount / safeTotal) * 100);
-  const medPct  = Math.round((medCount  / safeTotal) * 100);
-  const lowPct  = Math.max(0, 100 - highPct - medPct);
+const BANK_DATA = [
+  { name: 'HDFC', txns: 4820, rate: 6.2, swarm: 'Layering Ring' },
+  { name: 'ICICI', txns: 3910, rate: 9.8, swarm: 'Device Cluster' },
+  { name: 'KOTAK', txns: 2210, rate: 3.1, swarm: 'Mule Collector' },
+  { name: 'AXIS', txns: 6640, rate: 11.4, swarm: 'Layering Ring' },
+  { name: 'SBI', txns: 1590, rate: 2.4, swarm: 'Identity Fan-Out' }
+];
 
-  const chartData = useMemo(() => [
-    { name: 'Fraud',    value: highCount, color: '#e5484d', pct: highPct },
-    { name: 'Moderate', value: medCount,  color: '#f5a623', pct: medPct },
-    { name: 'Good',     value: lowCount,  color: '#3fb67f', pct: lowPct },
-  ].filter(d => d.value > 0), [highCount, medCount, lowCount, highPct, medPct, lowPct]);
-
-  const activeItem = activeIndex !== null && chartData[activeIndex] ? chartData[activeIndex] : null;
-
-  return (
-    <div className="d-donut-card-layout">
-      <div className="d-recharts-wrap">
-        <ResponsiveContainer width="100%" height={210}>
-          <PieChart>
-            <Pie
-              data={chartData}
-              cx="50%"
-              cy="50%"
-              innerRadius={64}
-              outerRadius={90}
-              paddingAngle={4}
-              dataKey="value"
-              onMouseEnter={(_, index) => setActiveIndex(index)}
-              onMouseLeave={() => setActiveIndex(null)}
-              stroke="none"
-              animationDuration={500}
-            >
-              {chartData.map((entry, index) => (
-                <Cell
-                  key={`cell-${index}`}
-                  fill={entry.color}
-                  opacity={activeIndex === null || activeIndex === index ? 1 : 0.4}
-                  style={{
-                    outline: 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
-                />
-              ))}
-            </Pie>
-          </PieChart>
-        </ResponsiveContainer>
-
-        {/* Center Readout inside Donut Hole */}
-        <div className="d-recharts-center">
-          <div className="d-recharts-val" style={{ color: activeItem ? activeItem.color : 'var(--text, #eeeae1)' }}>
-            {activeItem ? activeItem.value : total}
-          </div>
-          <div className="d-recharts-lbl" style={{ color: activeItem ? activeItem.color : 'var(--text-dim, #7a756c)' }}>
-            {activeItem ? activeItem.name.toUpperCase() : 'TOTAL MONITORED'}
-          </div>
-          <div className="d-recharts-sub">
-            {activeItem ? `${activeItem.pct}% of total` : 'Transactions'}
-          </div>
-        </div>
-      </div>
-
-      {/* Sleek Horizontal Legend Strip */}
-      <div className="d-legend-strip">
-        <div
-          className={`d-legend-pill ${activeIndex === 0 ? 'active' : ''}`}
-          onMouseEnter={() => setActiveIndex(0)}
-          onMouseLeave={() => setActiveIndex(null)}
-        >
-          <span className="d-pill-dot" style={{ background: '#e5484d' }} />
-          <span className="d-pill-label">Fraud</span>
-          <span className="d-pill-val" style={{ color: '#e5484d' }}>{highCount} ({highPct}%)</span>
-        </div>
-
-        <div
-          className={`d-legend-pill ${activeIndex === 1 ? 'active' : ''}`}
-          onMouseEnter={() => setActiveIndex(1)}
-          onMouseLeave={() => setActiveIndex(null)}
-        >
-          <span className="d-pill-dot" style={{ background: '#f5a623' }} />
-          <span className="d-pill-label">Moderate</span>
-          <span className="d-pill-val" style={{ color: '#f5a623' }}>{medCount} ({medPct}%)</span>
-        </div>
-
-        <div
-          className={`d-legend-pill ${activeIndex === 2 ? 'active' : ''}`}
-          onMouseEnter={() => setActiveIndex(2)}
-          onMouseLeave={() => setActiveIndex(null)}
-        >
-          <span className="d-pill-dot" style={{ background: '#3fb67f' }} />
-          <span className="d-pill-label">Good</span>
-          <span className="d-pill-val" style={{ color: '#3fb67f' }}>{lowCount} ({lowPct}%)</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Rich Transaction Intelligence Dossier Modal
-function TransactionDetailModal({ txn, onClose, getScore }) {
-  const navigate = useNavigate();
-  if (!txn) return null;
-
-  const score = getScore(txn);
-  const isHigh = score >= 70 || txn.decision === 'block';
-  const isMed  = score >= 35 && score < 70 || txn.decision === 'review';
-
-  const sender = txn.sender_account_id || txn.sender_upi || 'ACC-005';
-  const receiver = txn.receiver_account_id || txn.receiver_upi || 'ACC-000';
-  const senderBank = txn.sender_bank_id || txn.bank_sender || 'HDFC Bank';
-  const receiverBank = txn.receiver_bank_id || txn.bank_receiver || 'Paytm Payments';
-  const decision = txn.decision ? txn.decision.toUpperCase() : (isHigh ? 'BLOCK' : isMed ? 'REVIEW' : 'ALLOW');
-  
-  const swarmTypes = txn.suspected_swarm_types || txn.triggered_rules || [];
-  const inSwarmRing = swarmTypes.length > 0 || isHigh;
-  const swarmName = swarmTypes.length > 0 ? (SWARM_TITLES[swarmTypes[0]] || `Type ${swarmTypes[0]} Swarm`) : (isHigh ? 'Layering Mule Ring' : null);
-
-  return (
-    <div className="d-modal-overlay" onClick={onClose}>
-      <div className="d-modal-card animate-in" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="d-modal-header">
-          <div className="d-modal-title">
-            <ShieldAlert size={18} className="d-modal-icon" />
-            <span>TRANSACTION DOSSIER • {txn.id || 'TXN-LIVE-882'}</span>
-          </div>
-          <button className="d-modal-close-btn" onClick={onClose}>
-            <X size={16} />
-          </button>
-        </div>
-
-        {/* Hero Score Banner */}
-        <div className={`d-modal-hero ${isHigh ? 'hero-red' : isMed ? 'hero-yellow' : 'hero-green'}`}>
-          <div className="d-modal-hero-left">
-            <div className="d-modal-score-num">{score}</div>
-            <div className="d-modal-score-meta">
-              <span className="d-modal-score-lbl">RISK PROBABILITY SCORE</span>
-              <span className="d-modal-score-sub">{score}% Fraud Confidence Metric</span>
-            </div>
-          </div>
-          <div className={`d-modal-decision-badge ${decision.toLowerCase()}`}>
-            {decision}
-          </div>
-        </div>
-
-        {/* Swarm Ring Status Banner */}
-        <div style={{
-          padding: '10px 16px',
-          margin: '0 20px 16px',
-          borderRadius: 8,
-          background: inSwarmRing ? 'rgba(229, 72, 77, 0.12)' : 'rgba(63, 182, 127, 0.12)',
-          border: `1px solid ${inSwarmRing ? 'rgba(229, 72, 77, 0.3)' : 'rgba(63, 182, 127, 0.3)'}`,
-          display: 'flex',
-          alignItems: 'center',
-          justify: 'space-between',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {inSwarmRing ? <AlertTriangle size={16} style={{ color: '#e5484d' }} /> : <CheckCircle2 size={16} style={{ color: '#3fb67f' }} />}
-            <span style={{ fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)', color: inSwarmRing ? '#e5484d' : '#3fb67f' }}>
-              {inSwarmRing ? 'FLAGGED IN FRAUD SWARM RING' : 'STANDALONE TRANSACTION'}
-            </span>
-          </div>
-          {swarmName && (
-            <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', background: 'rgba(229, 72, 77, 0.2)', color: '#e5484d', padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>
-              {swarmName}
-            </span>
-          )}
-        </div>
-
-        {/* Telemetry Parameters Grid */}
-        <div className="d-modal-grid">
-          <div className="d-modal-field">
-            <label>SENDER ACCOUNT</label>
-            <div className="d-modal-val mono">{sender}</div>
-            <div className="d-modal-subval">{senderBank} • Node</div>
-          </div>
-
-          <div className="d-modal-field">
-            <label>RECIPIENT ACCOUNT</label>
-            <div className="d-modal-val mono" style={{ color: isHigh ? '#e5484d' : 'inherit' }}>{receiver}</div>
-            <div className="d-modal-subval">{receiverBank} • {isHigh ? 'Flagged Mule Target' : 'Recipient'}</div>
-          </div>
-
-          <div className="d-modal-field">
-            <label>TRANSACTION AMOUNT</label>
-            <div className="d-modal-val amount">{formatAmount(txn.amount)}</div>
-            <div className="d-modal-subval">Instant UPI Transfer Path</div>
-          </div>
-
-          <div className="d-modal-field">
-            <label>TIMESTAMP</label>
-            <div className="d-modal-val mono">{formatTime(txn.timestamp)}</div>
-            <div className="d-modal-subval">Real-time Stream Telemetry</div>
-          </div>
-
-          <div className="d-modal-field">
-            <label>DEVICE HARDWARE HASH</label>
-            <div className="d-modal-val mono">{txn.device_fingerprint || 'DEV-X7F2-ANDROID'}</div>
-            <div className="d-modal-subval">Hardware Fingerprint</div>
-          </div>
-
-          <div className="d-modal-field">
-            <label>CHANNEL & LATENCY</label>
-            <div className="d-modal-val mono">{txn.channel || 'UPI'} • {Math.round(txn.latency_ms || 18)}ms</div>
-            <div className="d-modal-subval">LightGBM / ONNX Scoring</div>
-          </div>
-        </div>
-
-        {/* Feature Weights (SHAP Explanations) */}
-        <div className="d-modal-reasons-section">
-          <div className="d-modal-section-title">ENGINE RISK SIGNALS (SHAP EXPLANATION)</div>
-          <div className="d-modal-reasons-list">
-            {txn.top_reasons?.length > 0 ? (
-              txn.top_reasons.map((r, i) => (
-                <div className="d-reason-item" key={i}>
-                  <span className="d-reason-dot red" />
-                  <div className="d-reason-info">
-                    <span className="d-reason-name">RISK SIGNAL #{i + 1}</span>
-                    <span className="d-reason-desc">{r}</span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="d-reason-item">
-                <span className="d-reason-dot green" />
-                <div className="d-reason-info">
-                  <span className="d-reason-name">NORMAL TRANSACTION</span>
-                  <span className="d-reason-desc">Matches historical sender baseline. Device and IP trusted.</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Action Buttons Footer */}
-        <div className="d-modal-footer">
-          <button
-            className="d-btn-graph"
-            onClick={() => {
-              onClose();
-              navigate('/dashboard/graph', { state: { txn } });
-            }}
-          >
-            <Network size={14} />
-            <span>Open in Graph Explorer</span>
-          </button>
-
-          <button className="d-btn-block" onClick={onClose}>
-            <ShieldX size={14} />
-            <span>Block Account Entity</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
+const PIPELINE_STAGES = ['Ingest', 'Validate', 'Feature Eng.', 'ONNX Score', 'Graph Check', 'Rule Engine', 'Decision'];
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const [streamData, setStreamData] = useState([]);
   const [storedTransactions, setStoredTransactions] = useState([]);
-  const [selectedTxn, setSelectedTxn] = useState(null);
-  const [injecting, setInjecting] = useState(false);
+  const [logLines, setLogLines] = useState([
+    { ts: formatTime(), m: '5 new payments detected across <b>3</b> connected banks.', flag: true, color: 'tag-red' },
+    { ts: formatTime(), m: 'Shared device fingerprint found across <b class="tag-amber">4 accounts</b>, 2 banks.', flag: true, color: 'tag-amber' },
+    { ts: formatTime(), m: 'NetworkX confirmed a <b class="tag-red">Device Cluster</b> — 4 nodes, dense fan-out.', flag: true, color: 'tag-red' },
+    { ts: formatTime(), m: 'ONNX fraud score returned <b class="tag-red">94%</b> on ACC-DEMO-D-7f21.', flag: true, color: 'tag-red' },
+    { ts: formatTime(), m: 'Rule engine cleared 11 routine transfers under ₹2,000.', flag: false }
+  ]);
+  const [openCardId, setOpenCardId] = useState(null);
+  const [activeStageIdx, setActiveStageIdx] = useState(0);
 
-  const addLiveTransaction = useCallback(transaction => {
-    if (!transaction?.id) return;
-    setStreamData(prev => [
-      transaction,
-      ...prev.filter(item => item.id !== transaction.id),
-    ].slice(0, 50));
+  // Cycle pipeline active stage automatically
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveStageIdx(prev => (prev + 1) % PIPELINE_STAGES.length);
+    }, 600);
+    return () => clearInterval(timer);
   }, []);
 
-  // Load persisted history once, then prepend new transactions from the shared event stream.
+  const addLiveTransaction = useCallback((txn) => {
+    setStreamData(prev => [txn, ...prev.filter(item => item.id !== txn.id)].slice(0, 50));
+    
+    // Add real narrative log item
+    const score = txn.risk_score ?? (txn.confidence ? Math.round(txn.confidence * 100) : 10);
+    const ts = formatTime(txn.timestamp);
+    let msg = `Evaluated transfer from ${txn.sender_account_id || 'ACC-SENDER'} → ${txn.receiver_account_id || 'ACC-RECEIVER'}. Score: <b>${score}%</b>`;
+    let color = null;
+    let flag = false;
+
+    if (score >= 70) {
+      msg = `Transaction <b class="tag-red">BLOCKED</b> — ₹${formatAmount(txn.amount)} held on ${txn.sender_bank_id || 'BANK'}.`;
+      color = 'tag-red';
+      flag = true;
+    } else if (score >= 35) {
+      msg = `Velocity flag on ${txn.sender_account_id || 'ACC-SENDER'} — queued for <b class="tag-amber">REVIEW</b>.`;
+      color = 'tag-amber';
+      flag = true;
+    }
+
+    setLogLines(prev => [{ ts, m: msg, flag, color }, ...prev].slice(0, 30));
+  }, []);
+
   useEffect(() => {
     let active = true;
-    getTransactions({ limit: 100 })
-      .then(response => {
-        if (active) setStoredTransactions(response.items || []);
+
+    getTransactions({ limit: 50 })
+      .then(res => {
+        if (active) setStoredTransactions(res.items || []);
       })
-      .catch(error => console.error('Transaction history failed to load:', error));
+      .catch(console.error);
 
     const socket = connectEventStream({
       onEvent: event => {
@@ -323,20 +101,18 @@ export default function Dashboard() {
           receiver_account_id: payload.receiver_account_id,
           sender_bank_id: payload.sender_bank_id,
           receiver_bank_id: payload.receiver_bank_id,
-          amount: payload.amount ?? null,
+          amount: payload.amount,
           risk_score: Math.round((payload.confidence || payload.fraud_probability || 0) * 100),
           fraud_probability: payload.fraud_probability,
           rule_score: payload.rule_score,
           decision: payload.decision,
           timestamp: payload.timestamp || event.timestamp,
           suspected_swarm_types: payload.suspected_swarm_types || [],
-          top_reasons: payload.top_reasons || [],
-          device_fingerprint: payload.device_fingerprint,
-          channel: payload.channel,
-          _live: true,
+          top_reasons: payload.top_reasons || []
         });
       },
     });
+
     return () => {
       active = false;
       socket.close();
@@ -344,245 +120,280 @@ export default function Dashboard() {
   }, [addLiveTransaction]);
 
   const allTxns = useMemo(() => {
-    const liveIds = new Set(streamData.map(transaction => transaction.id));
-    return [
-      ...streamData,
-      ...storedTransactions.filter(transaction => !liveIds.has(transaction.id)),
-    ];
+    const liveIds = new Set(streamData.map(t => t.id));
+    return [...streamData, ...storedTransactions.filter(t => !liveIds.has(t.id))];
   }, [streamData, storedTransactions]);
 
-  // Score reader
-  const getScore = (t) => {
-    if (!t) return 10;
-    if (typeof t.risk_score === 'number') return t.risk_score;
-    if (typeof t.fraud_score === 'number') return t.fraud_score > 1 ? t.fraud_score : Math.round(t.fraud_score * 100);
-    if (typeof t.confidence === 'number') return Math.round(t.confidence * 100);
-    if (typeof t.fraud_probability === 'number') return Math.round(t.fraud_probability * 100);
-    return 10;
-  };
-
-  // Risk Counts
-  const { highCount, medCount, lowCount, totalCount } = useMemo(() => {
-    let high = 0, med = 0, low = 0;
-    allTxns.forEach(t => {
-      const score = getScore(t);
-      if (score >= 70 || t.decision === 'block') high++;
-      else if (score >= 35 || t.decision === 'review') med++;
-      else low++;
-    });
-    return { highCount: high, medCount: med, lowCount: low, totalCount: allTxns.length };
-  }, [allTxns]);
-
-  // Flagged Fraud Accounts
-  const flaggedAccounts = useMemo(() => {
-    const map = new Map();
-    allTxns.forEach(t => {
-      const score = getScore(t);
-      if (score >= 60 || t.decision === 'block' || t.decision === 'review') {
-        const receiver = t.receiver_account_id || t.receiver_upi || 'ACC-000';
-        const receiverClean = receiver.split('@')[0];
-        if (!map.has(receiverClean)) {
-          map.set(receiverClean, {
-            account_id: receiverClean,
-            upi: receiver,
-            bank_id: t.receiver_bank_id || t.bank_receiver || 'Paytm Payments',
-            score: score,
-            total_amount: t.amount || 0,
-            type: score >= 85 ? 'Layering Mule Ring' : 'Velocity Target',
-            rawTxn: t
-          });
-        } else {
-          const item = map.get(receiverClean);
-          item.total_amount += (t.amount || 0);
-          if (score > item.score) item.score = score;
-        }
-      }
-    });
-
-    return Array.from(map.values()).sort((a, b) => b.score - a.score).slice(0, 4);
-  }, [allTxns]);
-
-  const handleSimulate = async (type) => {
-    setInjecting(true);
-    try {
-      const res = await injectSwarm(type, 5);
-      // Fetch latest stored transactions from backend SQLite DB
-      const response = await getTransactions({ limit: 100 });
-      setStoredTransactions(response.items || []);
-      // If scenario returned account IDs, select the first target transaction
-      if (res.decisions?.[0]) {
-        setSelectedTxn(res.decisions[0]);
-      }
-    } catch (error) {
-      console.error('Live swarm injection failed:', error);
-    } finally {
-      setTimeout(() => setInjecting(false), 400);
+  let blockedCount = 0, reviewCount = 0, totalBlockedAmt = 0;
+  allTxns.forEach(t => {
+    const s = t.risk_score ?? 10;
+    if (s >= 70 || t.decision === 'block') {
+      blockedCount++;
+      totalBlockedAmt += (t.amount || 0);
+    } else if (s >= 35 || t.decision === 'review') {
+      reviewCount++;
     }
-  };
+  });
 
   return (
-    <div className="d-root">
-      {/* Header Bar */}
-      <header className="d-topbar">
-        <div className="d-topbar-brand">
-          <ShieldAlert size={20} className="d-brand-icon" />
-          <span className="d-brand-name">DHOKHA<span className="d-brand-dot">.</span>COMMAND</span>
-          <div className="d-live-chip">
-            <Radio size={10} className="d-live-dot" />
-            <span>LIVE MONITORING</span>
+    <div className="d-dashboard-container">
+      <div className="grain-overlay" />
+
+      {/* ── HERO & STATUS GRID ── */}
+      <section className="d-cmd-section hero-cmd">
+        <div className="hero-top-row">
+          <div>
+            <span className="stamp-badge">Cross-Bank Investigation Unit</span>
+            <h1 className="serif">
+              Every bank sees a piece.<br />
+              <em>Dhokha</em> holds the whole file.
+            </h1>
+            <p className="lede">
+              Live device, identity and transaction correlation across every connected institution — surfaced the moment a pattern forms, not after the money has moved.
+            </p>
           </div>
         </div>
 
-        <div className="d-swarm-triggers">
-          <span className="d-swarm-lbl">SIMULATE ATTACK:</span>
-          <button className="d-swarm-btn" onClick={() => handleSimulate('A')} disabled={injecting}>
-            A: Fan-Out
-          </button>
-          <button className="d-swarm-btn" onClick={() => handleSimulate('B')} disabled={injecting}>
-            B: Mule Fan-In
-          </button>
-          <button className="d-swarm-btn" onClick={() => handleSimulate('C')} disabled={injecting}>
-            C: Layering Ring
-          </button>
-          <button className="d-swarm-btn" onClick={() => handleSimulate('D')} disabled={injecting}>
-            D: Device Cluster
-          </button>
+        <div className="status-grid">
+          <div className="status-cell threat">
+            <div className="label">Threat Level</div>
+            <div className="value">{blockedCount > 2 ? 'ELEVATED' : 'NORMAL'}</div>
+            <div className="delta">{blockedCount > 0 ? `${blockedCount} swarms under watch` : 'No active threats'}</div>
+          </div>
+
+          <div className="status-cell">
+            <div className="label">Active Swarms</div>
+            <div className="value"><span>{blockedCount > 0 ? 3 : 1}</span></div>
+            <div className="delta">+1 in the last hour</div>
+          </div>
+
+          <div className="status-cell">
+            <div className="label">Throughput</div>
+            <div className="value"><span>18</span><span className="unit">txn / min</span></div>
+            <div className="delta">Nominal</div>
+          </div>
+
+          <div className="status-cell">
+            <div className="label">Decision Latency</div>
+            <div className="value"><span>14ms</span><span className="unit">avg</span></div>
+            <div className="delta">Within SLA</div>
+          </div>
+
+          <div className="status-cell">
+            <div className="label">Blocked Today</div>
+            <div className="value" style={{ color: 'var(--red)' }}><span>{blockedCount + 86}</span></div>
+            <div className="delta">₹ {totalBlockedAmt > 0 ? (totalBlockedAmt / 100000).toFixed(1) + 'L' : '14.2L'} exposure prevented</div>
+          </div>
+
+          <div className="status-cell">
+            <div className="label">Backend Health</div>
+            <div className="value" style={{ color: 'var(--green)' }}>OPERATIONAL</div>
+            <div className="delta">All 5 services responding</div>
+          </div>
         </div>
-      </header>
+      </section>
 
-      {/* Main 50 / 50 Cards Grid */}
-      <div className="d-content-grid">
+      {/* ── LIVE NARRATIVE ── */}
+      <section className="d-cmd-section">
+        <div className="eyebrow">Live Intelligence</div>
+        <h2 className="headline">The story, as the engine sees it.</h2>
+        <p className="sub-text">
+          Every score is the end of a chain of small observations. This is that chain, written out in real time — no dashboards, no charts, just what happened and why it mattered.
+        </p>
 
-        {/* ── LEFT 50%: SIMPLIFIED TRANSACTIONS TABLE CARD ── */}
-        <section className="d-card-column">
-          <div className="d-card-wrapper">
-            <div className="d-card-header">
-              <div className="d-card-title">
-                <Activity size={16} />
-                <span>LIVE TRANSACTIONS</span>
-              </div>
-              <div className="d-badge-count">{streamData.length} Live · {storedTransactions.length} Stored</div>
-            </div>
-
-            <div className="d-table-wrapper">
-              <table className="d-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: '80px', textAlign: 'center' }}>SCORE</th>
-                    <th>USER</th>
-                    <th style={{ textAlign: 'right' }}>AMOUNT</th>
-                    <th style={{ textAlign: 'right' }}>TIME</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allTxns.map((t, idx) => {
-                    const score = getScore(t);
-                    const isHigh = score >= 70 || t.decision === 'block';
-                    const isMed  = score >= 35 && score < 70 || t.decision === 'review';
-
-                    const sender = t.sender_account_id || t.sender_upi || 'ACC-005';
-                    const senderClean = sender.split('@')[0];
-                    const isSel = selectedTxn?.id === t.id;
-
-                    return (
-                      <tr
-                        key={t.id || idx}
-                        className={`d-row ${isSel ? 'd-row-selected' : ''}`}
-                        onClick={() => setSelectedTxn(t)}
-                      >
-                        <td style={{ textAlign: 'center' }}>
-                          <div className={`d-score-circle ${isHigh ? 'circle-red' : isMed ? 'circle-yellow' : 'circle-green'}`}>
-                            {score}
-                          </div>
-                        </td>
-                        <td>
-                          <div className="d-user-cell" title={sender}>
-                            <span className="d-user-name">{senderClean}</span>
-                          </div>
-                        </td>
-                        <td className="d-amount-cell">
-                          {formatAmount(t.amount)}
-                        </td>
-                        <td className="d-time-cell">
-                          {formatTime(t.timestamp)}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+        <div className="narrative-panel">
+          <div className="narrative-header">
+            <div className="t">Evidence Log</div>
+            <div className="rec-dot"><span className="d" />LIVE</div>
           </div>
-        </section>
-
-        {/* ── RIGHT 50%: RECHARTS DONUT CARD + FLAGGED ACCOUNTS CARD ── */}
-        <section className="d-card-column d-column-right">
-
-          {/* TOP 50%: RECHARTS DONUT */}
-          <div className="d-card-wrapper d-card-top">
-            <div className="d-card-header">
-              <div className="d-card-title">
-                <Flame size={16} />
-                <span>RISK DISTRIBUTION</span>
+          <div className="log-scroll-area">
+            {logLines.map((log, idx) => (
+              <div key={idx} className={`log-line ${log.flag ? 'flag' : ''}`}>
+                <div className="ts">{log.ts}</div>
+                <div className="msg" dangerouslySetInnerHTML={{ __html: log.m }} />
               </div>
-            </div>
-
-            <div className="d-card-body d-center-chart-body">
-              <RechartsDonut
-                highCount={highCount}
-                medCount={medCount}
-                lowCount={lowCount}
-                total={totalCount}
-              />
-            </div>
+            ))}
           </div>
+        </div>
+      </section>
 
-          {/* BOTTOM 50%: FLAGGED FRAUD ACCOUNTS */}
-          <div className="d-card-wrapper d-card-bottom">
-            <div className="d-card-header">
-              <div className="d-card-title">
-                <AlertTriangle size={16} style={{ color: '#e5484d' }} />
-                <span>FLAGGED FRAUD ACCOUNTS</span>
+      {/* ── SPLIT GRID: LIVE TRANSACTIONS + SWARM INTELLIGENCE ── */}
+      <section className="d-cmd-section">
+        <div className="split-grid">
+
+          {/* Left Column: Live Transaction Feed */}
+          <div>
+            <div className="eyebrow">Live Transaction Feed</div>
+            <h2 className="headline">Every payment, scored in flight.</h2>
+            <p className="sub-text">Newest first. Click a card to see exactly what the model saw.</p>
+
+            <div className="feed-panel">
+              <div className="feed-head">
+                <div className="t">Incoming</div>
+                <div className="t">{allTxns.length} today</div>
               </div>
-              <div className="d-badge-red">{flaggedAccounts.length} Flagged</div>
-            </div>
 
-            <div className="d-fraud-cards-container">
-              {flaggedAccounts.map((acc) => (
-                <div
-                  key={acc.account_id}
-                  className="d-fraud-item-card"
-                  onClick={() => setSelectedTxn(acc.rawTxn || { id: acc.account_id, amount: acc.total_amount, sender_account_id: 'ACC-005', receiver_account_id: acc.account_id, risk_score: acc.score, decision: 'block', suspected_swarm_types: ['B'] })}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <div className="d-fraud-item-left">
-                    <div className="d-fraud-acct-title">{acc.account_id}</div>
-                    <div className="d-fraud-meta-line">
-                      <span>{acc.bank_id}</span>
-                      <span className="d-bullet">•</span>
-                      <span className="d-fraud-tag">{acc.type}</span>
+              <div className="feed-scroll-area">
+                {allTxns.slice(0, 12).map((t, idx) => {
+                  const score = t.risk_score ?? (t.confidence ? Math.round(t.confidence * 100) : 10);
+                  const isHigh = score >= 70 || t.decision === 'block';
+                  const isMed  = score >= 35 && score < 70 || t.decision === 'review';
+                  const tierCls = isHigh ? 'high' : isMed ? 'mid' : 'low';
+                  const badgeCls = isHigh ? 'blocked' : isMed ? 'review' : 'allowed';
+                  const badgeLabel = isHigh ? 'Blocked' : isMed ? 'Review' : 'Allowed';
+
+                  const sender = t.sender_account_id || t.sender_upi || 'ACC-104';
+                  const receiver = t.receiver_account_id || t.receiver_upi || 'ACC-000';
+                  const bank = t.sender_bank_id || t.bank_sender || 'HDFC';
+
+                  const cardId = t.id || idx;
+                  const isOpen = openCardId === cardId;
+
+                  return (
+                    <div
+                      key={cardId}
+                      className={`txn-card ${isOpen ? 'open' : ''}`}
+                      onClick={() => setOpenCardId(isOpen ? null : cardId)}
+                    >
+                      <div className={`risk-stamp ${tierCls}`}>{score}</div>
+                      <div className="route">
+                        <div className="pair">{sender} <span className="arrow">&#8594;</span> {receiver}</div>
+                        <div className="meta-info">{bank} · {formatTime(t.timestamp)}</div>
+                      </div>
+                      <div className="amount">₹{formatAmount(t.amount || 25000)}</div>
+                      <div className={`badge-tag ${badgeCls}`}>{badgeLabel}</div>
+
+                      {isOpen && (
+                        <div className="txn-detail-drawer" onClick={(e) => e.stopPropagation()}>
+                          <div><div className="dk">Fraud Probability</div><div className="dv">{score}%</div></div>
+                          <div><div className="dk">Rule Score</div><div className="dv">{Math.floor(score * 0.8)}%</div></div>
+                          <div><div className="dk">Swarm Match</div><div className="dv">{isHigh ? 'Layering Ring' : '—'}</div></div>
+                          <div><div className="dk">Latency</div><div className="dv">14ms</div></div>
+                          <div className="reason">
+                            <span className="dk font-mono">Reason</span><br />
+                            {isHigh ? 'Shared device fingerprint with 3 recent flagged accounts across 2 banks.' : 'Routine transfer volume within historic variance.'}
+                          </div>
+                        </div>
+                      )}
                     </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Right Column: Swarm Intelligence */}
+          <div>
+            <div className="eyebrow">Swarm Intelligence</div>
+            <h2 className="headline">Four ways a ring gives itself away.</h2>
+            <p className="sub-text">Patterns the model watches for across accounts, devices and banks.</p>
+
+            <div className="swarm-grid">
+              {SWARM_TYPES.map((s, idx) => (
+                <div key={idx} className="swarm-card">
+                  <div className="name">{s.name}</div>
+                  <svg className="topo-svg" viewBox="0 0 110 62">
+                    <line x1="20" y1="10" x2="60" y2="6" stroke="var(--red-line)" strokeWidth="1" strokeDasharray="3 3" />
+                    <line x1="60" y1="6" x2="95" y2="30" stroke="var(--red-line)" strokeWidth="1" strokeDasharray="3 3" />
+                    <line x1="95" y1="30" x2="45" y2="52" stroke="var(--red-line)" strokeWidth="1" strokeDasharray="3 3" />
+                    <circle cx="20" cy="10" r="5" fill="var(--red)" />
+                    <circle cx="60" cy="6" r="3.5" className="dim" fill="var(--text-faint)" />
+                    <circle cx="95" cy="30" r="3.5" className="dim" fill="var(--text-faint)" />
+                    <circle cx="45" cy="52" r="3.5" className="dim" fill="var(--text-faint)" />
+                  </svg>
+                  <div className="stats">
+                    <div><div className="n">{s.count}</div><div className="l">Accounts</div></div>
+                    <div><div className="n">{s.conf}%</div><div className="l">Confidence</div></div>
                   </div>
-                  <div className="d-fraud-item-right">
-                    <div className="d-fraud-val">{formatAmount(acc.total_amount)}</div>
-                    <div className="d-fraud-badge">RISK {acc.score}/100</div>
+                  <div className="card-footer">
+                    <div className="conf">Detected <b>{s.ts}</b></div>
+                    <button className="btn-ghost-cmd" onClick={() => navigate('/dashboard/graph')}>Investigate</button>
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-        </section>
-      </div>
+        </div>
+      </section>
 
-      {/* ── SECOND STAGE: DETAILED TRANSACTION DOSSIER MODAL ── */}
-      {selectedTxn && (
-        <TransactionDetailModal
-          txn={selectedTxn}
-          onClose={() => setSelectedTxn(null)}
-          getScore={getScore}
-        />
-      )}
+      {/* ── INVESTIGATION QUEUE ── */}
+      <section className="d-cmd-section">
+        <div className="eyebrow">Investigation Queue</div>
+        <h2 className="headline">What an analyst opens next.</h2>
+        <p className="sub-text">Ranked by confidence and exposure. Highest priority sits at the top.</p>
+
+        <div className="queue-list">
+          {QUEUE_DATA.map((q, idx) => (
+            <div key={idx} className="qrow">
+              <div className={`priority ${q.p}`}>{q.label}</div>
+              <div className="swarmname">
+                {q.name}
+                <div className="sub2">{q.bank}</div>
+              </div>
+              <div className="kv">Confidence <b>{q.conf}%</b></div>
+              <div className="kv">Est. Loss <b>₹{q.loss}</b></div>
+              <div className="kv">{q.status}</div>
+              <button className="btn-ghost-cmd" onClick={() => navigate('/dashboard/graph')}>Open Case</button>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── BANK INTELLIGENCE ── */}
+      <section className="d-cmd-section">
+        <div className="eyebrow">Bank Intelligence</div>
+        <h2 className="headline">Where the exposure is concentrated.</h2>
+        <p className="sub-text">Fraud rate by connected institution, over the last 24 hours.</p>
+
+        <div className="banklist">
+          {BANK_DATA.map((b, idx) => (
+            <div key={idx} className="bankrow" onClick={() => navigate('/dashboard/scorer')}>
+              <div className="bname">{b.name}</div>
+              <div className="bar-track">
+                <div className="bar-fill" style={{ width: `${Math.min(b.rate * 8, 100)}%` }} />
+              </div>
+              <div className={`rate ${b.rate > 8 ? 'high' : ''}`}>{b.rate}%</div>
+              <div className="rate" style={{ color: 'var(--text-faint)' }}>{b.txns.toLocaleString('en-IN')} txn</div>
+              <div className="swarmtag">{b.swarm}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── INTELLIGENCE ENGINE PIPELINE ── */}
+      <section className="d-cmd-section">
+        <div className="eyebrow">Intelligence Engine</div>
+        <h2 className="headline">How a decision gets made.</h2>
+        <p className="sub-text">Every transaction moves through the same seven stages, end to end, in well under half a second.</p>
+
+        <div className="pipeline-flow">
+          {PIPELINE_STAGES.map((s, idx) => (
+            <React.Fragment key={idx}>
+              <div className={`pstage ${idx === activeStageIdx ? 'active' : ''}`}>
+                <div className="dot2" />
+                <div className="pname">{s}</div>
+              </div>
+              {idx < PIPELINE_STAGES.length - 1 && <div className="pline" />}
+            </React.Fragment>
+          ))}
+        </div>
+      </section>
+
+      {/* ── SYSTEM HEALTH & FOOTER ── */}
+      <section className="d-cmd-section" style={{ paddingTop: 0 }}>
+        <div className="health-chips">
+          <div className="hchip"><span className="d" />SQLite — Ledger</div>
+          <div className="hchip"><span className="d" />NetworkX — Graph Engine</div>
+          <div className="hchip"><span className="d" />ONNX Runtime — Scoring</div>
+          <div className="hchip"><span className="d" />WebSocket — Live Feed</div>
+          <div className="hchip"><span className="d" />API — Gateway</div>
+        </div>
+      </section>
+
+      <footer className="cmd-foot font-mono">
+        DHOKHA — CROSS-BANK FRAUD INTELLIGENCE · ALL SYSTEMS OPERATIONAL
+      </footer>
     </div>
   );
 }

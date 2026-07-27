@@ -35,7 +35,6 @@ export default function DashboardLayout() {
           ))}
         </nav>
         <div className="app-case-actions">
-          <span className="app-case-id">Case 2026-UPI-0004</span>
           <ThemeToggle />
         </div>
       </header>

@@ -2081,13 +2081,11 @@ a:focus-visible {
 .app-case-nav .db-sidebar-link.active::before { display: none; }
 .app-case-actions { display: flex; align-items: center; gap: 14px; margin-left: auto; }
 
-.db-main { width: 100%; }
-.db-main > .dark-operations-board,
-.db-main > .explorer-layout,
-.db-main > .case-inspector-page {
+.db-main {
+  width: 100%;
   height: calc(100vh - 70px);
-  min-height: calc(100vh - 70px);
   margin-top: 70px;
+  overflow: hidden;
 }
 
 .db-main > .page { padding-top: 88px; }

@@ -19,7 +19,7 @@ function TwoStageGraphCarousel() {
   const nodes = [
     { id: 'hdfc',  label: 'HDFC',  x: 65,  y: 45 },
     { id: 'icici', label: 'ICICI', x: 275, y: 55 },
-    { id: 'paytm', label: 'PAYTM', x: 235, y: 160 },
+    { id: 'axis',  label: 'AXIS',  x: 235, y: 160 },
     { id: 'kotak', label: 'KOTAK', x: 75,  y: 155 },
     { id: 'yes',   label: 'YES',   x: 170, y: 100 },
   ];
@@ -125,7 +125,7 @@ export default function Landing() {
   return (
     <div className="landing-page">
       <nav>
-        <Link to="/" className="logo" style={{ textDecoration: 'none' }}>DHOKHA<span>.</span></Link>
+        <Link to="/" className="app-case-logo" style={{ textDecoration: 'none' }}>DHOKHA<span>.</span></Link>
         <div className="nav-links">
           <Link to="/dashboard">Dashboard</Link>
           <Link to="/pay?tab=signup">Sign Up</Link>
