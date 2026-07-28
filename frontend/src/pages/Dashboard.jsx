@@ -8,13 +8,15 @@ const formatTime = (ts) => {
   if (!ts) {
     return new Date().toLocaleTimeString('en-IN', { hour12: false });
   }
-  if (typeof ts === 'string' && /^\d{2}:\d{2}:\d{2}/.test(ts)) {
-    return ts.slice(0, 8);
+  let cleanTs = String(ts).trim();
+  if (!cleanTs.includes('Z') && !cleanTs.includes('+')) {
+    cleanTs = cleanTs.includes('T') ? cleanTs + 'Z' : cleanTs.replace(' ', 'T') + 'Z';
+  } else if (cleanTs.includes(' ') && !cleanTs.includes('T')) {
+    cleanTs = cleanTs.replace(' ', 'T');
   }
-  const date = new Date(ts.includes('T') ? ts : ts.replace(' ', 'T'));
+  const date = new Date(cleanTs);
   if (isNaN(date.getTime())) {
-    const match = String(ts).match(/\d{2}:\d{2}:\d{2}/);
-    return match ? match[0] : new Date().toLocaleTimeString('en-IN', { hour12: false });
+    return new Date().toLocaleTimeString('en-IN', { hour12: false });
   }
   return date.toLocaleTimeString('en-IN', { hour12: false });
 };
@@ -158,7 +160,13 @@ export default function Dashboard() {
 
   const formatTimeAgo = useCallback((ts) => {
     if (!ts) return 'active';
-    const date = new Date(ts.includes('T') ? ts : ts.replace(' ', 'T'));
+    let cleanTs = String(ts).trim();
+    if (!cleanTs.includes('Z') && !cleanTs.includes('+')) {
+      cleanTs = cleanTs.includes('T') ? cleanTs + 'Z' : cleanTs.replace(' ', 'T') + 'Z';
+    } else if (cleanTs.includes(' ') && !cleanTs.includes('T')) {
+      cleanTs = cleanTs.replace(' ', 'T');
+    }
+    const date = new Date(cleanTs);
     if (isNaN(date.getTime())) return 'active';
     const diffSec = Math.max(0, Math.floor((new Date().getTime() - date.getTime()) / 1000));
     if (diffSec < 45) return 'just now';
