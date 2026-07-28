@@ -80,8 +80,51 @@ export default function GraphExplorer() {
   }, []);
 
   useEffect(() => {
-    fetchGraph(initialAccId);
-  }, [fetchGraph, initialAccId]);
+    const senderParam = searchParams.get('sender');
+    const receiverParam = searchParams.get('receiver');
+    const deviceParam = searchParams.get('device');
+    const amountParam = searchParams.get('amount');
+
+    if (senderParam && receiverParam) {
+      const senderId = senderParam.toUpperCase();
+      const receiverId = receiverParam.toUpperCase();
+      const deviceId = deviceParam || 'DEV-device-001';
+      const amt = parseFloat(amountParam || '5000');
+
+      const targetedGraph = {
+        focal_account_id: receiverId,
+        nodes: [
+          { id: senderId, type: 'account', bank: 'HDFC Bank', risk_score: 55, label: senderId, reveal_stage: 0 },
+          { id: receiverId, type: 'account', bank: 'ICICI Bank', risk_score: 88, label: receiverId, reveal_stage: 0 },
+          { id: deviceId, type: 'device', bank: 'DEVICE', risk_score: 75, label: deviceId, reveal_stage: 0 },
+        ],
+        edges: [
+          { id: `TXN-TARGET-${senderId}-${receiverId}`, source: senderId, target: receiverId, amount: amt, relation: 'PAYMENT', timestamp: new Date().toISOString(), reveal_stage: 0 },
+          { id: `LINK-${senderId}-${deviceId}`, source: senderId, target: deviceId, amount: 0, relation: 'SHARES_DEVICE', reveal_stage: 0 },
+          { id: `LINK-${receiverId}-${deviceId}`, source: receiverId, target: deviceId, amount: 0, relation: 'SHARES_DEVICE', reveal_stage: 0 },
+        ],
+        swarm_meta: {
+          swarm_type: 'one_off_transaction',
+          verdict: 'Single Transaction Telemetry Inspection',
+        },
+        metrics: {
+          degree_centrality: 0.67,
+          clustering_coefficient: 0.50,
+          betweenness_centrality: 0.33,
+          cycle_count: 0,
+        }
+      };
+
+      setGraphData(targetedGraph);
+      setFocalAccountId(receiverId);
+      setSearchInput(receiverId);
+      setCurrentStage(4);
+      setIsPlaying(false);
+      setSelectedNode(targetedGraph.nodes[1]);
+    } else {
+      fetchGraph(initialAccId);
+    }
+  }, [fetchGraph, initialAccId, searchParams]);
 
   // Stage Playback Timer
   useEffect(() => {
@@ -165,14 +208,16 @@ export default function GraphExplorer() {
 
   // Filtered nodes & edges according to currentStage
   const visibleNodes = useMemo(() => {
-    return (graphData.nodes || []).filter(n => n.reveal_stage <= currentStage);
+    return (graphData.nodes || []).filter(n => (n.reveal_stage ?? 0) <= currentStage);
   }, [graphData.nodes, currentStage]);
 
   const visibleEdges = useMemo(() => {
-    const visibleNodeIds = new Set(visibleNodes.map(n => n.id));
-    return (graphData.edges || []).filter(e => 
-      e.reveal_stage <= currentStage && visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target)
-    );
+    const visibleNodeIds = new Set(visibleNodes.map(n => (typeof n === 'object' ? n.id : n)));
+    return (graphData.edges || []).filter(e => {
+      const srcId = typeof e.source === 'object' ? e.source.id : e.source;
+      const tgtId = typeof e.target === 'object' ? e.target.id : e.target;
+      return (e.reveal_stage ?? 0) <= currentStage && visibleNodeIds.has(srcId) && visibleNodeIds.has(tgtId);
+    });
   }, [graphData.edges, visibleNodes, currentStage]);
 
   // Node color helper — stable reference

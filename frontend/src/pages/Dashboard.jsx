@@ -230,7 +230,6 @@ export default function Dashboard() {
       <section className="d-cmd-section hero-cmd">
         <div className="hero-top-row">
           <div>
-            <span className="stamp-badge">Cross-Bank Investigation Unit</span>
             <h1 className="serif">
               Every bank sees a piece.<br />
               <em>Dhokha</em> holds the whole file.
