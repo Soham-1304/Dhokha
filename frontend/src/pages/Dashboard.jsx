@@ -6,11 +6,17 @@ import './Dashboard.css';
 const formatAmount = (n) => n == null ? '0' : Number(n).toLocaleString('en-IN');
 const formatTime = (ts) => {
   if (!ts) {
-    return new Date().toTimeString().slice(0, 8);
+    return new Date().toLocaleTimeString('en-IN', { hour12: false });
   }
-  const date = new Date(ts.includes('T') ? ts : ts.replace(' ', 'T') + 'Z');
-  if (isNaN(date.getTime())) return new Date().toTimeString().slice(0, 8);
-  return date.toTimeString().slice(0, 8);
+  if (typeof ts === 'string' && /^\d{2}:\d{2}:\d{2}/.test(ts)) {
+    return ts.slice(0, 8);
+  }
+  const date = new Date(ts.includes('T') ? ts : ts.replace(' ', 'T'));
+  if (isNaN(date.getTime())) {
+    const match = String(ts).match(/\d{2}:\d{2}:\d{2}/);
+    return match ? match[0] : new Date().toLocaleTimeString('en-IN', { hour12: false });
+  }
+  return date.toLocaleTimeString('en-IN', { hour12: false });
 };
 
 const PIPELINE_STAGES = ['Ingest', 'Validate', 'Feature Eng.', 'ONNX Score', 'Graph Check', 'Rule Engine', 'Decision'];
@@ -152,9 +158,9 @@ export default function Dashboard() {
 
   const formatTimeAgo = useCallback((ts) => {
     if (!ts) return 'active';
-    const date = new Date(ts.includes('T') ? ts : ts.replace(' ', 'T') + 'Z');
+    const date = new Date(ts.includes('T') ? ts : ts.replace(' ', 'T'));
     if (isNaN(date.getTime())) return 'active';
-    const diffSec = Math.floor((new Date().getTime() - date.getTime()) / 1000);
+    const diffSec = Math.max(0, Math.floor((new Date().getTime() - date.getTime()) / 1000));
     if (diffSec < 45) return 'just now';
     if (diffSec < 3600) return `${Math.floor(diffSec / 60)} mins ago`;
     return `${Math.floor(diffSec / 3600)} hrs ago`;
