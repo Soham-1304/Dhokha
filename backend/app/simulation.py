@@ -10,7 +10,7 @@ from app.database import Account, AccountDevice, Alert, Device, Identity, Transa
 from app.schemas import ScoreRequest, SwarmType
 
 
-BANKS = ["BANK_ALPHA", "BANK_BETA", "BANK_GAMMA", "BANK_DELTA"]
+BANKS = ["HDFC", "ICICI", "AXIS", "KOTAK", "SBI"]
 
 
 def _hash(value: str) -> str:

@@ -229,10 +229,15 @@ async def inject_swarm(payload: InjectSwarmRequest):
         for transaction in transactions
         for account_id in (transaction.sender_account_id, transaction.receiver_account_id)
     })
+    focal_account_id = account_ids[0] if account_ids else "ACC-001"
+    subgraph_data = graph_engine.subgraph(focal_account_id, depth=2)
     return {
-        "scenario_id": scenario_id, "swarm_type": payload.swarm_type.value,
+        "scenario_id": scenario_id,
+        "swarm_type": payload.swarm_type.value,
+        "focal_account_id": focal_account_id,
         "transactions_generated": len(results),
         "account_ids": account_ids,
+        "subgraph": subgraph_data,
         "decisions": [result.model_dump(mode="json") for result in results],
     }
 
