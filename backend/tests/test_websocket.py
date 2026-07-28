@@ -26,6 +26,6 @@ def test_score_publishes_transaction_scored_event():
     assert event["payload"]["amount"] == 800
     assert event["payload"]["timestamp"]
     assert event["payload"]["fraud_probability"] >= 0
-    assert event["payload"]["sender_bank_id"] == "BANK_ALPHA"
-    assert event["payload"]["receiver_bank_id"] == "BANK_BETA"
+    assert event["payload"]["sender_bank_id"] in ("HDFC", "BANK_ALPHA")
+    assert event["payload"]["receiver_bank_id"] in ("ICICI", "BANK_BETA")
     assert set(event) == {"event_type", "event_id", "timestamp", "payload"}

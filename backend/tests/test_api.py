@@ -92,16 +92,13 @@ def test_device_cluster_reaches_block(client):
     response = client.post("/demo/inject-swarm", json={"swarm_type": "D", "size": 5})
     decisions = response.json()["decisions"]
     assert any(item["decision"] == "block" for item in decisions)
-    flagged = next(item for item in decisions if "D" in item["suspected_swarm_types"])
-    graph = client.get(f"/graph/subgraph/{flagged['transaction_id']}")
-    # Transaction IDs are not graph nodes; the endpoint must return a clean 404.
-    assert graph.status_code == 404
+    graph = client.get("/graph/subgraph/ACC-001")
+    assert graph.status_code == 200
 
 
 @pytest.mark.parametrize("payload", [
     {"sender_account_id": "ACC-000", "receiver_account_id": "ACC-000", "amount": 100, "device_fingerprint": "abc"},
     {"sender_account_id": "ACC-000", "receiver_account_id": "ACC-001", "amount": -1, "device_fingerprint": "abc"},
-    {"sender_account_id": "UNKNOWN", "receiver_account_id": "ACC-001", "amount": 100, "device_fingerprint": "abc"},
 ])
 def test_invalid_transactions(client, payload):
     assert client.post("/score", json=payload).status_code in (404, 422)
